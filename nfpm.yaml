@@ -1,4 +1,4 @@
-name: "usb-ether-gadget"
+name: "rpi-usb-ether-gadget"
 arch: "arm64"
 platform: "linux"
 version: "1.0.0"
