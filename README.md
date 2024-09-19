@@ -7,9 +7,9 @@ Additionally, it offers ultra-low latency (sub 1 millisecond), perfect for large
 ## Features
 
 - **Plug-and-play**: No complex configuration required.
-- **Network Sharing**: Share your PC/laptop's internet connection with the Raspberry Pi.
-- **Low Latency**: Sub 1ms ping for faster communication and data transfers.
 - **Headless Operation**: Operate the Pi without a Wi-Fi network, wired ethernet, monitor, or keyboard.
+- **Low Latency**: Sub 1ms ping for faster communication and data transfers.
+- **Network Sharing**: Share your PC/laptop's internet connection with the Raspberry Pi.
 - **Wide Compatibility**: Supports Raspberry Pi models A/A+, 3A+, 4B, 5B, Zero (W), and Zero 2 W.
 
 ## Subnetwork Configuration
@@ -44,6 +44,16 @@ Simply plug your Raspberry Pi into your PC/laptop using a USB cable, and it will
 > Important: Not all USB ports on your Raspberry Pi support USB OTG (which is required for this to work). On Pi 4 / 5 models, use the USB-C port, and on other models, use the USB port closest to the HDMI port.
 
 You can then connect to it via SSH, transfer files, or use remote development tools like VS Code.
+
+## Using Raspberry Pi Imager
+
+You can also configure this functionality directly within the [Raspberry Pi Imager](https://raspberrypi.com/software) tool. Simply select "USB Ethernet Gadget" in the options tab in the "Edit Settings" dialog to enable it.
+
+For command-line users, this feature can also be activated with the `--usb-ether-gadget` flag when using the rpi-imager-cli.
+
+```bash
+rpi-imager-cli --usb-ether-gadget
+```
 
 ## Contributions
 
