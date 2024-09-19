@@ -30,12 +30,12 @@ This package sets up the Raspberry Pi to act as a USB Ethernet Gadget, creating 
 1. Download the `.deb` package from the [releases page](https://github.com/paulober/rpi-usb-ethernet-gadget/releases).
 2. Install the package using:
    ```bash
-   sudo dpkg -i usb-ethernet-gadget.deb
+   sudo dpkg -i rpi-usb-ethernet-gadget.deb
    ```
 3. Reboot your Raspberry Pi.
-    ```
-    sudo reboot
-    ```
+   ```bash
+   sudo reboot
+   ```
 
 ## Usage
 
