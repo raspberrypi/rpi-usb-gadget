@@ -7,6 +7,9 @@ priority: "extra"
 maintainer: "Paul Oberosler <paul.oberosler@raspberrypi.com>"
 description: Configures USB Ethernet Gadget mode on Raspberry Pi OS. The default subnet is 10.12.194.1/28. Only supported on main power USB port.
 
+conflicts:
+  - "rpi-usb-ether-gadget-manual"
+
 contents:
 - src: ./usb-ether-gadget.conf
   dst: /etc/modules-load.d/usb-ether-gadget.conf
