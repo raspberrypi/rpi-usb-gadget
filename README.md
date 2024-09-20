@@ -10,7 +10,7 @@ Additionally, it offers ultra-low latency (sub 1 millisecond), perfect for large
 - **Headless Operation**: Operate the Pi without a Wi-Fi network, wired ethernet, monitor, or keyboard.
 - **Low Latency**: Sub 1ms ping for faster communication and data transfers.
 - **Network Sharing**: Share your PC/laptop's internet connection with the Raspberry Pi.
-- **Wide Compatibility**: Supports Raspberry Pi models A/A+, 3A+, 4B, 5B, Zero (W), and Zero 2 W.
+- **Wide Compatibility**: Supports Raspberry Pi models A/A+, 3A+, 4B, 5, Zero, Zero W, and Zero 2 W.
 
 ## Subnetwork Configuration
 
@@ -43,7 +43,7 @@ This package sets up the Raspberry Pi to act as a USB Ethernet Gadget, creating 
 
 Simply plug your Raspberry Pi into your PC/laptop using a USB cable, and it will be recognized as an Ethernet device. 
 
-> Important: Not all USB ports on your Raspberry Pi support USB OTG (which is required for this to work). On Pi 4 / 5 models, use the USB-C port, and on other models, use the USB port closest to the HDMI port.
+> Important: Not all USB ports on your Raspberry Pi support USB OTG (which is required for this to work). On Pi 4 / 5 models, use the USB-C port, and on Pi Zero models, use the micro-USB port closest to the mini-HDMI port. For the A / A+ models, you'll need to use a custom USB-A to USB-A cable with the 5V wire snipped.
 
 You can then connect to it via SSH, transfer files, or use remote development tools like VS Code.
 
