@@ -20,7 +20,9 @@ Additionally, it offers ultra-low latency (sub 1 millisecond), perfect for large
 - **Broadcast Address**: 10.12.194.15
 - **Subnet Mask**: 255.255.255.240 (_/28_)
 
-(This configuration ensures minimal IP conflicts, even when multiple Raspberry Pi devices are connected to the same host.) \[Maybe, needs testing\]
+This configuration ensures minimal IP conflicts with other subnets.
+But when multiple Raspberry Pi devices are connected to the same host, they will
+all have the same IP. It is recommended to use `hostname.local` to access the devices individually.
 
 ## How It Works
 This package sets up the Raspberry Pi to act as a USB Ethernet Gadget, creating a network interface over USB. The default IP address is `10.12.194.1`, but you can also access the device using its `hostname.local`.
