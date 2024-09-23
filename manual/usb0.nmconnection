@@ -2,19 +2,19 @@
 id=usb0
 uuid=c5c663e3-9442-4bc4-a89d-9e710ea272d8
 type=ethernet
-autoconnect=true
 interface-name=usb0
+autoconnect=true
 
 [ethernet]
 mac-address-blacklist=
 
 [ipv4]
+method=shared  # Use "shared" for Internet sharing, otherwise use "manual" for static IP
 address1=10.12.194.1/28,10.12.194.15
-dns=
+dns=8.8.8.8;8.8.4.4;1.1.1.1; # Optional
 dns-search=
-method=shared
+ignore-auto-dns=true
 
 [ipv6]
 addr-gen-mode=stable-privacy
-dns-search=
-method=shared
+method=auto # or shared
