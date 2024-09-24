@@ -1,5 +1,7 @@
 #!/bin/bash
 
+chmod +x /usr/bin/rpi-usb-ether-gadget
+
 echo "dtoverlay=dwc2,dr_mode=peripheral" >> /boot/firmware/config.txt || echo "dtoverlay=dwc2,dr_mode=peripheral" >> /boot/config.txt
 
 SERIAL=$(grep Serial /proc/cpuinfo | awk '{print $3}')

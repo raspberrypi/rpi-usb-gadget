@@ -17,6 +17,8 @@ contents:
   dst: /etc/modprobe.d/g_ether.conf
 - src: ./10-usb.network
   dst: /etc/systemd/network/10-usb.network
+- src: ./rpi-usb-ether-gadget.sh
+  dst: /usr/bin/rpi-usb-ether-gadget
 
 scripts:
   postinstall: ./postinstall.sh
