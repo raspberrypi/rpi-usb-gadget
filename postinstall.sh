@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 chmod +x /usr/bin/rpi-usb-ether-gadget
 

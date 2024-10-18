@@ -1,5 +1,5 @@
 name: "rpi-usb-ether-gadget"
-arch: "arm64"
+arch: "any"
 platform: "linux"
 version: "1.0.0"
 section: "default"
