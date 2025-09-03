@@ -1,13 +1,14 @@
-# USB Ethernet Gadget for Raspberry Pi OS
+# USB Ethernet + Serial Gadget for Raspberry Pi OS
 
-This package enables your Raspberry Pi to act as a USB Ethernet gadget, providing network connectivity over USB. It’s particularly useful for headless environments, where you don’t have access to a Wi-Fi network, monitor, keyboard, or mouse. The gadget supports network sharing from your PC/laptop to the Raspberry Pi, making it ideal for various environments like hotels, schools, or public spaces where direct Wi-Fi communication might be restricted. 
+This package enables your Raspberry Pi to act as a USB **Ethernet + Serial (CDC ECM + ACM) gadget**, providing both network connectivity and a serial console over USB. It’s particularly useful for headless environments, where you don’t have access to a Wi-Fi network, monitor, keyboard, or mouse. The gadget supports network sharing from your PC/laptop to the Raspberry Pi, making it ideal for various environments like hotels, schools, or public spaces where direct Wi-Fi communication might be restricted. 
 
 Additionally, it offers ultra-low latency (sub 1 millisecond), perfect for large data transfers, remote development using tools like Visual Studio Code, and other performance-critical tasks.
 
 ## Features
 
 - **Plug-and-play**: No complex configuration required.
-- **Headless Operation**: Operate the Pi without a Wi-Fi network, wired ethernet, monitor, or keyboard.
+- **Dual USB functions**: Provides both a network interface (Ethernet over USB) and a USB serial console for debugging/headless setup.
+- **Headless Operation**: Operate the Pi without Wi-Fi, wired Ethernet, monitor, or keyboard.
 - **Low Latency**: Sub 1ms ping for faster communication and data transfers.
 - **Network Sharing**: Share your PC/laptop's internet connection with the Raspberry Pi.
 - **Wide Compatibility**: Supports Raspberry Pi models A/A+, 3A+, 4B, 5, Zero, Zero W, and Zero 2 W.
@@ -25,7 +26,11 @@ But when multiple Raspberry Pi devices are connected to the same host, they will
 all have the same IP. It is recommended to use `hostname.local` to access the devices individually.
 
 ## How It Works
-This package sets up the Raspberry Pi to act as a USB Ethernet Gadget, creating a network interface over USB. The default IP address is `10.12.194.1`, but you can also access the device using its `hostname.local`.
+This package sets up the Raspberry Pi as a USB Composite Gadget, exposing:
+- **usb0**: Ethernet over USB (default IP `10.12.194.1` or `<hostname>.local`)
+- **/dev/ttyGS0** on the Pi, appearing as `/dev/ttyACM0` (Linux/macOS) or COM port (Windows) on the host
+
+The Ethernet interface allows SSH and file transfers, while the serial console provides a fallback for first-time or recovery access.
 
 ## Installation
 

@@ -19,15 +19,36 @@ RequiredForOnline=no
 # TODO: maybe only static hostname to not conflict when multiple devices are connected
 # to the same computer
 Address=10.12.194.1/28
-DHCPServer=yes
+# Be a DHCP *client* when the host offers it (ICS)
+DHCPServer=no
+DHCP=yes
 
+# Fall back to IPv4 link-local (169.254/16) when there’s no DHCP server
+IPv4LL=yes
+
+# Publish/resolve myhostname.local using mDNS (and LLMNR for Windows)
+IPv6AcceptRA=yes
+# no-op as mDNS is handled by avahi compared to systemd-resolved
+MulticastDNS=yes
+LLMNR=yes
+
+# Prefer the DHCP-provided route over the static alias
+DHCPv4.RouteMetric=100
+IPv4RouteMetric=200
+
+# In case you want the Pi to take
+# over controll of the connection
+# In order to enable this
+# - Disable DHCP=no above
+# - Enable DHCPServer=yes above
 [DHCPServer]
 # Configure DHCP settings
-PoolSize=16                  # Number of IP addresses available for lease
-DefaultLeaseTimeSec=60       # Default lease time for DHCP clients
-MaxLeaseTimeSec=60           # Maximum lease time for DHCP clients
+PoolOffset=1                # start at .2 (offset from the server address)
+PoolSize=14                 # Number of IP addresses available for lease (.2 .. .15 excluding broadcast)
+DefaultLeaseTimeSec=5min    # Default lease time for DHCP clients
+MaxLeaseTimeSec=30min       # Maximum lease time for DHCP clients
 
 # Network isolation settings (no internet)
-EmitDNS=no                   # Do not provide DNS information
-EmitNTP=no                   # Do not provide NTP information
-EmitRouter=no                # Do not provide router information
+EmitDNS=no                  # Do not provide DNS information
+EmitNTP=no                  # Do not provide NTP information
+EmitRouter=no               # Do not provide router information

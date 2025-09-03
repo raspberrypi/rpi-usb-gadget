@@ -23,9 +23,9 @@ elif [ "$1" == "toggle" ]; then
     fi
 elif [ "$1" == "status" ]; then
     if [ -f /etc/modules-load.d/usb-ether-gadget.conf ]; then
-        echo -e "\e[33mUSB Ethernet Gadget is on\e[0m"
+        echo -e "\e[33mUSB Ethernet/Serial Gadget is on\e[0m"
     else
-        echo -e "\e[33mUSB Ethernet Gadget is off\e[0m"
+        echo -e "\e[33mUSB Ethernet/Serial Gadget is off\e[0m"
     fi
     exit
 else
@@ -33,16 +33,22 @@ else
     exit
 fi
 
+cfg_fw=/boot/firmware/config.txt
+cfg_legacy=/boot/config.txt
+overlay_line='dtoverlay=dwc2,dr_mode=peripheral'
 #rm /etc/modprobe.d/g_ether.conf
 
 if [ "$TURN_ON" = false ]; then
-    echo -e "Turning \e[31moff\e[0m USB Ethernet Gadget mode"
+    echo -e "Turning \e[31moff\e[0m USB Ethernet+Serial Gadget mode"
     rm -f /etc/modules-load.d/usb-ether-gadget.conf
-    sed -i '/dtoverlay=dwc2,dr_mode=peripheral/d' /boot/firmware/config.txt
+    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
+    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
 else
-    echo -e "Turning \e[32mon\e[0m USB Ethernet Gadget mode"
-    echo -e "dwc2\ng_ether\n" > /etc/modules-load.d/usb-ether-gadget.conf
-    echo -e "\ndtoverlay=dwc2,dr_mode=peripheral\n" >> /boot/firmware/config.txt
+    echo -e "Turning \e[32mon\e[0m USB Ethernet+Serial Gadget mode"
+    printf "g_cdc\n" > /etc/modules-load.d/usb-ether-gadget.conf
+    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
+    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
+    echo "$overlay_line" >> "$cfg_fw" 2>/dev/null || echo "$overlay_line" >> "$cfg_legacy"
 fi
 
 echo "Reboot to apply changes"

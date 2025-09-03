@@ -1,0 +1,4 @@
+# When the USB gadget network interface appears, log a hint to dmesg
+ACTION=="add", SUBSYSTEM=="net", KERNEL=="usb*", \
+  RUN+="/usr/bin/systemd-run --quiet --property=Type=oneshot \
+       --unit=rpi-usb-gadget-hint /usr/libexec/rpi-usb-ether-gadget/host-hint.sh"

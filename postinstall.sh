@@ -1,12 +1,22 @@
 #!/bin/sh
+set -e
 
-chmod +x /usr/bin/rpi-usb-ether-gadget
+chmod +x /usr/bin/rpi-usb-gadget
 
-echo "dtoverlay=dwc2,dr_mode=peripheral" >> /boot/firmware/config.txt || echo "dtoverlay=dwc2,dr_mode=peripheral" >> /boot/config.txt
+# Ensure overlay present exactly once
+OL='dtoverlay=dwc2,dr_mode=peripheral'
+CFG_FW=/boot/firmware/config.txt
+CFG_LEG=/boot/config.txt
+grep -qxF "$OL" "$CFG_FW" 2>/dev/null || echo "$OL" >> "$CFG_FW" 2>/dev/null || \
+grep -qxF "$OL" "$CFG_LEG" 2>/dev/null || echo "$OL" >> "$CFG_LEG"
 
-SERIAL=$(grep Serial /proc/cpuinfo | awk '{print $3}')
+# Stamp serial into g_ether options
+SERIAL=$(awk '/^Serial/{print $3}' /proc/cpuinfo)
 sed -i "s/<serial>/$SERIAL/g" /etc/modprobe.d/g_ether.conf
 
-systemctl enable systemd-networkd
+udevadm control --reload-rules || true
+udevadm trigger --subsystem-match=net || true
 
-echo "- - USB Ethernet Gadget configured, please reboot for changes to take effect. - -"
+systemctl enable systemd-networkd || true
+
+echo "- - USB CDC Ethernet+Serial Gadget configured, please reboot. - -"
