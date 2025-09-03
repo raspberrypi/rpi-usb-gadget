@@ -2,12 +2,6 @@
 ; Raspberry Pi USB RNDIS Driver Installer
 ; ============================
 
-; --- Choose cert by thumbprint if provided, else by subject name ---
-#ifndef CertSubject
-  #define CertSubject "Raspberry Pi Ltd."
-#endif
-#define CertThumbprint "ED90F2AE921D7E574019552CE1C635F1F1297D00"
-
 #define MyAppName        "Raspberry Pi USB RNDIS Driver"
 #define MyAppVersion     "1.0.0"
 #define MyAppPublisher   "Raspberry Pi Ltd."

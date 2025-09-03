@@ -35,7 +35,7 @@ function Find-ISCC {
   throw "ISCC.exe not found. Install Inno Setup 6 or set `$env:ISCC to its path."
 }
 
-function Sign-File([string]$Path) {
+function Set-FileSignature([string]$Path) {
   if (-not (Test-Path $Path)) { throw "File not found: $Path" }
   $args = @("sign","/fd","SHA256","/td","SHA256","/tr",$TimestampUrl)
   if ($CertThumbprint) {
@@ -54,7 +54,7 @@ Write-Host "Generating catalog for $InfName ..."
 if (-not (Test-Path $CatName)) { throw "Catalog not generated: $CatName" }
 
 # --- Sign the CAT (driver package signature) ---
-Sign-File -Path (Resolve-Path $CatName).Path
+Set-FileSignature -Path (Resolve-Path $CatName).Path
 
 # Optional: show signature
 (Get-AuthenticodeSignature $CatName).Status | Out-Host
@@ -85,7 +85,7 @@ if (-not (Test-Path $Installer)) {
 # --- Sign the installer EXE as well ---
 # Inno will already sign (installer + uninstaller) via your [SignTool] block.
 # This extra sign step is harmless and can help if the in-process sign is skipped.
-if ($SignOutputExe) { Sign-File -Path $Installer }
+if ($SignOutputExe) { Set-FileSignature -Path $Installer }
 
 Write-Host "Build complete:"
 Write-Host "  CAT: $((Resolve-Path $CatName).Path)"
