@@ -1,5 +1,5 @@
-rpi-usb-gadget (1.0.1-1) unstable; urgency=medium
+rpi-usb-gadget (1.0.1-1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).
 
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 03 Sep 2025 18:31:00 +0100
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 03 Sep 2025 18:57:43 +0100
