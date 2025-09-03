@@ -1,0 +1,4 @@
+debian export-ignore
+.gitignore export-ignore
+.gitlab-ci.yml export-ignore
+
