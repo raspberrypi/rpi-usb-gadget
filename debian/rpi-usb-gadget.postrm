@@ -1,0 +1,12 @@
+#!/bin/sh
+set -e
+#DEBHELPER#
+
+# After removal, reload rules so our RUN+ stops firing
+udevadm control --reload-rules || true
+for dev in /sys/class/net/usb*; do
+  [ -e "$dev" ] || continue
+  udevadm trigger --action=change --sysname-match="$(basename "$dev")" || true
+done
+
+exit 0

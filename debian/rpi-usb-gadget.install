@@ -1,0 +1,14 @@
+# kernel module autoload (package default; admin can override in /etc)
+usb-gadget.conf usr/lib/modules-load.d/
+# modprobe options (package default)
+g_ether.conf usr/lib/modprobe.d/
+
+# systemd-networkd profile — admin-editable
+10-usb.network etc/systemd/network/
+
+# helper binaries/scripts
+rpi-usb-gadget.sh usr/bin/
+udev/host-hint.sh usr/lib/rpi-usb-gadget/
+
+# udev rule: packages install to usr/lib/udev/rules.d (admin overrides in /etc)
+udev/99-rpi-usb-gadget-hint.rules usr/lib/udev/rules.d/

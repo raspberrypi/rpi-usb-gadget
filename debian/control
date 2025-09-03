@@ -1,0 +1,18 @@
+Source: rpi-usb-gadget
+Section: admin
+Priority: optional
+Maintainer: Paul Oberosler <paul.oberosler@raspberrypi.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.7.0
+Homepage: https://github.com/raspberrypi/rpi-usb-gadget
+Rules-Requires-Root: no
+Vcs-Browser: https://github.com/raspberrypi/rpi-usb-gadget
+Vcs-Git: https://github.com/raspberrypi/rpi-usb-gadget.git
+
+Package: rpi-usb-gadget
+Architecture: all
+Depends: ${misc:Depends}, udev, systemd
+Description: USB CDC Ethernet + (future) Serial gadget setup for Raspberry Pi OS
+ Configures Raspberry Pi to present a USB Ethernet and serial (in the future) gadget.
+ Ships a systemd-networkd profile for the USB link and a udev hint.
+ See project README for Windows host instructions.

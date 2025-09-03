@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+#DEBHELPER#
+
+# Reload udev rules so the removal/addition takes effect immediately
+udevadm control --reload-rules || true
+# Re-trigger only usb* net devices (gentle)
+for dev in /sys/class/net/usb*; do
+  [ -e "$dev" ] || continue
+  udevadm trigger --action=change --sysname-match="$(basename "$dev")" || true
+done
+
+# Ensure our helper scripts are executable (in case VCS lost +x)
+chmod 0755 /usr/bin/rpi-usb-gadget 2>/dev/null || true
+chmod 0755 /usr/lib/rpi-usb-gadget/host-hint.sh 2>/dev/null || true
+
+exit 0
