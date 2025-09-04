@@ -1,4 +1,4 @@
-rpi-usb-gadget (1.0.1-1) trixie; urgency=medium
+rpi-usb-gadget (1.0.1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).
 
