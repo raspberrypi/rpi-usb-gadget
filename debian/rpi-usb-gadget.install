@@ -3,8 +3,9 @@ usb-gadget.conf usr/lib/modules-load.d/
 # modprobe options (package default)
 g_ether.conf usr/lib/modprobe.d/
 
+# replaced with NetworkManager runtime config
 # systemd-networkd profile — admin-editable
-10-usb.network etc/systemd/network/
+#10-usb.network etc/systemd/network/
 
 # helper binaries/scripts
 rpi-usb-gadget.sh usr/bin/
