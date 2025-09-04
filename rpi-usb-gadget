@@ -36,8 +36,8 @@ nm_ensure_client() {
         nmcli connection modify "$CLIENT_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
-            autoconnect yes \
-            autoconnect-priority 100 \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 100 \
             ipv4.method auto \
             ipv4.may-fail no \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
@@ -45,8 +45,8 @@ nm_ensure_client() {
             ipv6.method disabled || true
     else
         nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$CLIENT_NAME" \
-            autoconnect yes \
-            autoconnect-priority 100 \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 100 \
             ipv4.method auto \
             ipv4.may-fail no \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
@@ -61,15 +61,15 @@ nm_ensure_shared() {
         nmcli connection modify "$SHARED_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
-            autoconnect no \
-            autoconnect-priority 10 \
+            connection.autoconnect no \
+            connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
             ipv6.method disabled || true
     else
         nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$SHARED_NAME" \
-            autoconnect no \
-            autoconnect-priority 10 \
+            connection.autoconnect no \
+            connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
             ipv6.method disabled || true
