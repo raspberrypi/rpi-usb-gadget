@@ -1,3 +1,10 @@
+rpi-usb-gadget (1.0.2) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Switch to NM for network
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Thu, 04 Sep 2025 10:13:12 +0100
+
 rpi-usb-gadget (1.0.1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).
