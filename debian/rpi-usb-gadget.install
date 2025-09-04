@@ -6,7 +6,7 @@ g_ether.conf usr/lib/modprobe.d/
 #10-usb.network etc/systemd/network/
 
 # helper binaries/scripts
-rpi-usb-gadget.sh usr/bin/rpi-usb-gadget
+rpi-usb-gadget usr/bin/
 udev/host-hint.sh usr/lib/rpi-usb-gadget/
 
 # udev rule: packages install to usr/lib/udev/rules.d (admin overrides in /etc)

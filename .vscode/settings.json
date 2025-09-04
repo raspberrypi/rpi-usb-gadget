@@ -3,6 +3,6 @@
         "*.iss": "inno",
         "*.postinst": "shellscript",
         "*.postrm": "shellscript",
-        "20-usb-gadget-fallback": "shellscript",
+        "rpi-usb-gadget": "shellscript",
     }
 }
