@@ -1,3 +1,10 @@
+rpi-usb-gadget (1.0.3) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Fix typos and serial insert
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Thu, 04 Sep 2025 11:02:00 +0100
+
 rpi-usb-gadget (1.0.2) trixie; urgency=medium
 
   [ Paul Oberosler ]
