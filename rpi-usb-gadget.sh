@@ -64,15 +64,15 @@ case "$1" in
     on)      TURN_ON=true ;;
     off)     TURN_ON=false ;;
     toggle)
-        if [ -f /etc/modules-load.d/usb-ether-gadget.conf ]; then
+        if [ -f /usr/lib/modules-load.d/usb-gadget.conf ]; then
             TURN_ON=false
         fi
         ;;
     status)
-        if [ -f /etc/modules-load.d/usb-ether-gadget.conf ]; then
-            echo -e "\e[33mUSB Ethernet/Serial Gadget is on\e[0m"
+        if [ -f /usr/lib/modules-load.d/usb-gadget.conf ]; then
+            echo -e "\e[33mUSB Gadget mode is on\e[0m"
         else
-            echo -e "\e[33mUSB Ethernet/Serial Gadget is off\e[0m"
+            echo -e "\e[33mUSB Gadget mode is off\e[0m"
         fi
         if have_nmcli; then
             if nmcli -t -f NAME connection show | grep -Fxq "$NM_CONN_NAME"; then
@@ -84,7 +84,7 @@ case "$1" in
         exit 0
         ;;
     help|""|*)
-        echo "Usage: rpi-usb-ether-gadget [on|off|toggle|status|help]"
+        echo "Usage: rpi-usb-gadget [on|off|toggle|status|help]"
         exit 1
         ;;
 esac
@@ -95,8 +95,8 @@ overlay_line='dtoverlay=dwc2,dr_mode=peripheral'
 #rm /etc/modprobe.d/g_ether.conf
 
 if [ "$TURN_ON" = false ]; then
-    echo -e "Turning \e[31moff\e[0m USB Ethernet+Serial Gadget mode"
-    rm -f /etc/modules-load.d/usb-ether-gadget.conf
+    echo -e "Turning \e[31moff\e[0m USB Gadget mode"
+    rm -f /usr/lib/modules-load.d/usb-gadget.conf
     sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
     sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
 
@@ -104,8 +104,8 @@ if [ "$TURN_ON" = false ]; then
     nm_remove_client
 
 else
-    echo -e "Turning \e[32mon\e[0m USB Ethernet+Serial Gadget mode"
-    printf "g_cdc\n" > /etc/modules-load.d/usb-ether-gadget.conf
+    echo -e "Turning \e[32mon\e[0m USB Gadget mode"
+    printf "g_ether\n" > /usr/lib/modules-load.d/usb-gadget.conf
     sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
     sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
     echo "$overlay_line" >> "$cfg_fw" 2>/dev/null || echo "$overlay_line" >> "$cfg_legacy"
