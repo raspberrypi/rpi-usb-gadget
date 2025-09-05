@@ -1,13 +1,14 @@
-# modprobe options (package default)
-g_ether.conf usr/lib/modprobe.d/
+# modprobe options
+g_ether.conf                            usr/lib/modprobe.d/
 
-# replaced with NetworkManager runtime config
-# systemd-networkd profile — admin-editable
-#10-usb.network etc/systemd/network/
+# helper scripts/binaries
+rpi-usb-gadget                          usr/bin/
+ics-watch.py                            usr/libexec/rpi-usb-gadget/
 
-# helper binaries/scripts
-rpi-usb-gadget usr/bin/
-udev/host-hint.sh usr/lib/rpi-usb-gadget/
+# Udev Rules
+udev/99-rpi-usb-gadget-hint.rules       usr/lib/udev/rules.d/
+# Udev Private helper (namespaced)
+udev/host_hint.sh                       usr/libexec/rpi-usb-gadget/
 
-# udev rule: packages install to usr/lib/udev/rules.d (admin overrides in /etc)
-udev/99-rpi-usb-gadget-hint.rules usr/lib/udev/rules.d/
+# Systemd service
+rpi-usb-gadget-ics.service              usr/lib/systemd/system/

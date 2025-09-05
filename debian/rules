@@ -4,3 +4,8 @@ export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
 %:
 	dh $@
+
+override_dh_installsystemd:
+	# Install the unit but leave it disabled/inactive
+	# CLI toggler controls it.
+	dh_installsystemd --no-enable --no-start

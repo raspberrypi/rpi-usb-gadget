@@ -12,11 +12,14 @@ if ! grep -q "Raspberry Pi" /proc/device-tree/model; then
     exit
 fi
 
-# --- settings ---
+################################
+########### Settings ###########
+################################
 NM_IFACE="${USB_GADGET_IFACE:-usb0}"
 
 CLIENT_NAME='USB Gadget (client)'
 SHARED_NAME='USB Gadget (shared)'
+SERVICE="rpi-usb-gadget-ics.service"
 
 SHARED_ADDR="10.12.194.1/28"
 CLIENT_DHCP_TIMEOUT=6
@@ -27,6 +30,34 @@ mods_conf="/usr/lib/modules-load.d/usb-gadget.conf"
 cfg_fw=/boot/firmware/config.txt
 cfg_legacy=/boot/config.txt
 overlay_line='dtoverlay=dwc2,dr_mode=peripheral'
+
+#################################
+##### Systemd service setup #####
+#################################
+
+have_systemctl() { command -v systemctl >/dev/null 2>&1; }
+
+svc_enable_now() {
+    have_systemctl || return 0
+    systemctl daemon-reload || true
+    systemctl enable --now "$SERVICE" 2>/dev/null || true
+}
+
+svc_disable_now() {
+    have_systemctl || return 0
+    systemctl disable --now "$SERVICE" 2>/dev/null || true
+}
+
+svc_status() {
+    have_systemctl || { echo "(no systemd)"; return; }
+    systemctl is-enabled "$SERVICE" 2>/dev/null && en=yes || en=no
+    systemctl is-active  "$SERVICE" 2>/dev/null && ac=yes || ac=no
+    echo "ICS watcher: enabled=$en active=$ac"
+}
+
+################################
+# NetworkManager (nmcli) setup #
+################################
 
 have_nmcli() { command -v nmcli >/dev/null 2>&1; }
 
@@ -76,49 +107,6 @@ nm_ensure_shared() {
     fi
 }
 
-nm_install_dispatcher() {
-    local d="/etc/NetworkManager/dispatcher.d"
-    local f="$d/20-usb-gadget-fallback"
-    install -d -m 0755 "$d"
-    cat > "$f" <<'EOF'
-#!/bin/sh
-# Auto-switch usb0 between client (ICS) and shared (fallback)
-IF="$1"
-ACTION="$2"
-
-IFACE="${USB_GADGET_IFACE:-usb0}"
-CLIENT_NAME='USB Gadget (client)'
-SHARED_NAME='USB Gadget (shared)'
-
-[ "$IF" = "$IFACE" ] || exit 0
-
-# When DHCP4 state changes, NM exports DHCP4_* variables.
-# If we have a gateway, ICS is active -> use client.
-# If we don't, bring up shared so host gets an IP.
-case "$ACTION" in
-  dhcp4-change)
-    if [ -n "$DHCP4_ROUTE_GATEWAY" ]; then
-      # Got lease/gateway: ensure shared is down, client is up
-      nmcli con down "$SHARED_NAME" >/dev/null 2>&1 || true
-      nmcli con up   "$CLIENT_NAME" >/dev/null 2>&1 || true
-    else
-      # No lease: fallback to shared
-      nmcli con up   "$SHARED_NAME" >/dev/null 2>&1 || true
-    fi
-    ;;
-  down)
-    # Interface went down; stop shared if it was up
-    nmcli con down "$SHARED_NAME" >/dev/null 2>&1 || true
-    ;;
-esac
-EOF
-    chmod 0755 "$f"
-}
-
-nm_remove_dispatcher() {
-    rm -f /etc/NetworkManager/dispatcher.d/20-usb-gadget-fallback
-}
-
 nm_remove_profiles() {
     nmcli -t -f NAME connection show | grep -Fxq "$CLIENT_NAME" && \
         nmcli connection delete "$CLIENT_NAME" >/dev/null 2>&1 || true
@@ -147,6 +135,7 @@ case "$1" in
             nmcli -g GENERAL.STATE,IP4.ADDRESS,IP4.GATEWAY device show "$NM_IFACE" 2>/dev/null || true
             nmcli -t -f NAME connection show | grep -E "^(${CLIENT_NAME}|${SHARED_NAME})$" || echo "(no gadget profiles)"
         fi
+        svc_status
         exit 0
         ;;
     help|""|*)
@@ -158,12 +147,14 @@ esac
 if [ "$TURN_ON" = false ]; then
     echo -e "Turning \e[31moff\e[0m USB Gadget mode"
 
+    # stop ICS watcher first
+    svc_disable_now
+
     # stop NM bits first
     if have_nmcli; then
         nmcli con down "$SHARED_NAME" >/dev/null 2>&1 || true
         nmcli con down "$CLIENT_NAME" >/dev/null 2>&1 || true
         nm_remove_profiles
-        nm_remove_dispatcher
         nmcli connection reload >/dev/null 2>&1 || true
     fi
 
@@ -184,12 +175,14 @@ else
     if have_nmcli; then
         nm_ensure_client
         nm_ensure_shared
-        nm_install_dispatcher
         nmcli connection reload >/dev/null 2>&1 || true
 
-        # Try client first; dispatcher will flip to shared if no DHCP/gateway
+        # Try client first; ICS-watch will flip to shared if no DHCP/gateway
         nmcli con down "$SHARED_NAME" >/dev/null 2>&1 || true
         nmcli con up "$CLIENT_NAME"   >/dev/null 2>&1 || true
+
+        # start ICS watcher so it can auto-switch client/shared
+        svc_enable_now
     else
         echo -e "\e[33mNetworkManager (nmcli) not found; skipping NM auto-config.\e[0m"
     fi

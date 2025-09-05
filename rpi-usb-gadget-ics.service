@@ -1,0 +1,21 @@
+# /etc/systemd/system/rpi-usb-gadget-ics.service
+[Unit]
+Description=USB gadget ICS auto-switcher (client <-> shared)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+Environment=USB_GADGET_IFACE=usb0
+Environment=CLIENT_NAME=USB Gadget (client)
+Environment=SHARED_NAME=USB Gadget (shared)
+# Enable extra logs by uncommenting:
+#Environment=ICS_DEBUG=1
+ExecStart=/usr/libexec/rpi-usb-gadget/ics-watch.py
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
