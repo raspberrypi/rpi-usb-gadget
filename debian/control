@@ -24,7 +24,7 @@ Depends:
   iputils-arping,
   network-manager
 Recommends:
-  avahi-daemon  # mDNS hostname on USB link
+  avahi-daemon
 Description: USB CDC Ethernet + (future) Serial gadget setup for Raspberry Pi OS
  Configures Raspberry Pi to present a USB Ethernet and serial (in the future) gadget.
  Ships a systemd-networkd profile for the USB link and a udev hint.
