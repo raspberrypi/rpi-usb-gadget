@@ -1,3 +1,11 @@
+rpi-usb-gadget (1.0.5) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Fix NetworkManager cli args
+  * Added ICS Watcher service
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Fri, 05 Sep 2025 17:00:43 +0100
+
 rpi-usb-gadget (1.0.4) trixie; urgency=medium
 
   [ Paul Oberosler ]
