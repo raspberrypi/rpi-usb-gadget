@@ -1,34 +1,7 @@
-rpi-usb-gadget (1.0.5) trixie; urgency=medium
-
-  [ Paul Oberosler ]
-  * Fix NetworkManager cli args
-  * Added ICS Watcher service
-
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Fri, 05 Sep 2025 17:00:43 +0100
-
-rpi-usb-gadget (1.0.4) trixie; urgency=medium
-
-  [ Paul Oberosler ]
-  * Upgrade network config
-
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Thu, 04 Sep 2025 17:28:15 +0100
-
-rpi-usb-gadget (1.0.3) trixie; urgency=medium
-
-  [ Paul Oberosler ]
-  * Fix typos and serial insert
-
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Thu, 04 Sep 2025 11:02:00 +0100
-
-rpi-usb-gadget (1.0.2) trixie; urgency=medium
-
-  [ Paul Oberosler ]
-  * Switch to NM for network
-
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Thu, 04 Sep 2025 10:13:12 +0100
-
 rpi-usb-gadget (1.0.1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).
+  * Switch to NetworkManager for networking
+  * Imrpoved support for Windows 11 and macOS 26
 
- -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 03 Sep 2025 18:57:43 +0100
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 08 Sep 2025 11:57:43 +0100
