@@ -1,12 +1,44 @@
 #!/bin/sh
 set -e
+
+# Let dh_installsystemd/udev do their thing:
 #DEBHELPER#
 
-# After removal, reload rules so our RUN+ stops firing
-udevadm control --reload-rules || true
-for dev in /sys/class/net/usb*; do
-  [ -e "$dev" ] || continue
-  udevadm trigger --action=change --sysname-match="$(basename "$dev")" || true
-done
+case "$1" in
+  purge)
+    # Remove NM extras we created at runtime
+    # dnsmasq lease-tuning snippet
+    rm -f /etc/NetworkManager/dnsmasq-shared.d/90-rpi-usb-gadget-lease.conf || true
+
+    # delete our NM profiles (via nmcli if possible; otherwise remove files)
+    if command -v nmcli >/dev/null 2>&1; then
+      nmcli -t -f NAME con show | grep -Fxq 'USB Gadget (client)'  && nmcli con delete 'USB Gadget (client)'  || true
+      nmcli -t -f NAME con show | grep -Fxq 'USB Gadget (shared)'  && nmcli con delete 'USB Gadget (shared)'  || true
+      nmcli connection reload  || true
+      nmcli general reload     || true
+    else
+      # Locations used by NM for keyfile profiles
+      rm -f /etc/NetworkManager/system-connections/USB\ Gadget\ \(client\).nmconnection 2>/dev/null || true
+      rm -f /etc/NetworkManager/system-connections/USB\ Gadget\ \(shared\).nmconnection 2>/dev/null || true
+    fi
+
+    # Remove modules-load override the CLI may have created
+    rm -f /etc/modules-load.d/usb-gadget.conf || true
+
+    # Best-effort: remove the overlay line we added
+    for cfg in /boot/firmware/config.txt /boot/config.txt; do
+      [ -f "$cfg" ] || continue
+      # delete an exact match of the line we add
+      sed -i '\@^dtoverlay=dwc2,dr_mode=peripheral$@d' "$cfg" || true
+    done
+
+    # Udev: reload rules so our RUN+ no longer fires
+    udevadm control --reload-rules || true
+    for dev in /sys/class/net/usb*; do
+      [ -e "$dev" ] || continue
+      udevadm trigger --action=change --sysname-match="$(basename "$dev")" || true
+    done
+    ;;
+esac
 
 exit 0

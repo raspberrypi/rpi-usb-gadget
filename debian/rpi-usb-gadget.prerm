@@ -1,0 +1,6 @@
+#!/bin/sh
+set -e
+if [ -x /bin/systemctl ] || [ -x /usr/bin/systemctl ]; then
+  systemctl --no-reload disable --now rpi-usb-gadget-ics.service 2>/dev/null || true
+fi
+exit 0

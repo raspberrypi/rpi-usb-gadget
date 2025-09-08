@@ -12,21 +12,24 @@ from gi.repository import GLib, NM
 
 
 ICS_DEBUG = os.environ.get("ICS_DEBUG", "0") != "0"
-IFACE = os.environ.get("USB_GADGET_IFACE", "usb0")
-CLIENT_ID = os.environ.get("CLIENT_NAME", "USB Gadget (client)")
-SHARED_ID = os.environ.get("SHARED_NAME", "USB Gadget (shared)")
+#IFACE = os.environ.get("USB_GADGET_IFACE", "usb0")
+IFACE = "usb0"
+#CLIENT_ID = os.environ.get("CLIENT_NAME", "USB Gadget (client)")
+#SHARED_ID = os.environ.get("SHARED_NAME", "USB Gadget (shared)")
+CLIENT_ID = "USB Gadget (client)"
+SHARED_ID = "USB Gadget (shared)"
 
 # win/mac/linux defaults
 ICS_GWS = ["192.168.137.1", "192.168.2.1", "10.42.0.1"]
 
 # Tunables
-LOOP_MS = 4000          # periodic check
-FALLBACK_DELAY = 25     # in s
-MINDWELL = 10           # in s
+LOOP_MS = 4000          # periodic check in ms
+FALLBACK_DELAY = 5      # in s
+MINDWELL = 1            # in s
 GW_STABLE = 3           # in s
-GW_UNREACH_GRACE = 2    # in s
+GW_UNREACH_GRACE = 1    # in s
 PROBE_EVERY = 12        # in s
-PROBE_TIMEOUT = 8       # in s
+PROBE_TIMEOUT = 4       # in s
 
 last_switch = 0
 last_link_up = 0

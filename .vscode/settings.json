@@ -3,6 +3,7 @@
         "*.iss": "inno",
         "*.postinst": "shellscript",
         "*.postrm": "shellscript",
+        "*.prerm": "shellscript",
         "rpi-usb-gadget": "shellscript",
         "control": "yaml",
         "copyright": "yaml",
