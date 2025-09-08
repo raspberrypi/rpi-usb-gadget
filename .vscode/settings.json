@@ -4,5 +4,9 @@
         "*.postinst": "shellscript",
         "*.postrm": "shellscript",
         "rpi-usb-gadget": "shellscript",
+        "control": "yaml",
+        "copyright": "yaml",
+        "rules": "makefile",
+        "changelog": "markdown"
     }
 }

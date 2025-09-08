@@ -25,7 +25,6 @@ Depends:
   network-manager
 Recommends:
   avahi-daemon
-Description: USB CDC Ethernet + (future) Serial gadget setup for Raspberry Pi OS
- Configures Raspberry Pi to present a USB Ethernet and serial (in the future) gadget.
- Ships a systemd-networkd profile for the USB link and a udev hint.
- See project README for Windows host instructions.
+Description: USB gadget setup for Raspberry Pi OS
+ Configures Raspberry Pi to present a USB Ethernet gadget.
+ See project README for Windows host setup instructions.
