@@ -417,7 +417,7 @@ int main(int argc, char **argv) {
     // SIGINT
     struct sigaction sa;
     memset(&sa, 0, sizeof(sa));
-    sa.sa_restorer = on_sigint;
+    sa.sa_handler = on_sigint;
     sigaction(SIGINT, &sa, NULL);
 
     g_main_loop_run(g_loop);
