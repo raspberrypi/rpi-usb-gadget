@@ -252,7 +252,7 @@ static gboolean arping(const char *gw) {
     }
 
     g_free(arp);
-    return FALSE;
+    return ok;
 }
 
 static gboolean any_ics_gateway_reachable(void) {
