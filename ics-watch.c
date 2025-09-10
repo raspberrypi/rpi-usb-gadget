@@ -1,6 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: Apache-2.0
 // ICS watcher: toggle between "USB Gadget (client)" and "USB Gadget (shared)"
-// using NetworkManager (libnm) + GLib, ported from Python version.
+// using NetworkManager (libnm) + GLib
 // ICS = "Internet Connection Sharing"
 
 #include <stdio.h>
@@ -15,6 +15,7 @@
 #include <NetworkManager.h>
 
 static const char *ENV_DEBUG = "ICS_DEBUG";
+static const char *ENV_IFACE = "USB_GADGET_IFACE";
 static const char *IFACE = "usb0";
 static const char *CLIENT_ID = "USB Gadget (client)";
 static const char *SHARED_ID = "USB Gadget (shared)";
@@ -46,7 +47,7 @@ static inline gint64 now_s(void) {
     return g_get_real_time() / G_USEC_PER_SEC;
 }
 
-static void logf(gboolean force, const char *fmt, ...) {
+static void log_msg(gboolean force, const char *fmt, ...) {
     if (!g_debug && !force) return;
     va_list ap;
     va_start(ap, fmt);
@@ -101,10 +102,10 @@ static void on_activate_cb(GObject *src, GAsyncResult *res, gpointer user_data) 
     NMActiveConnection *ac =
         nm_client_activate_connection_finish(NM_CLIENT(src), res, &err);
     if (!ac) {
-        logf(FALSE, "Activate '%s' failed: %s", ctx->name, err ? err->message : "unknown");
+        log_msg(FALSE, "Activate '%s' failed: %s", ctx->name, err ? err->message : "unknown");
         g_clear_error(&err);
     } else {
-        logf(FALSE, "Activated '%s'", ctx->name);
+        log_msg(FALSE, "Activated '%s'", ctx->name);
     }
     g_free(ctx->name);
     g_free(ctx);
@@ -113,12 +114,12 @@ static void on_activate_cb(GObject *src, GAsyncResult *res, gpointer user_data) 
 static gboolean up(const char *name) {
     NMConnection *c = conn_by_id(name);
     if (!c) {
-        logf(FALSE, "up(): connection '%s' not found", name);
+        log_msg(FALSE, "up(): connection '%s' not found", name);
         return FALSE;
     }
     NMDevice *dev = get_device();
     if (!dev) {
-        logf(FALSE, "up(): device not found");
+        log_msg(FALSE, "up(): device not found");
         return FALSE;
     }
 
@@ -128,7 +129,7 @@ static gboolean up(const char *name) {
     nm_client_activate_connection_async(
         g_client, c, dev, NULL, NULL, on_activate_cb, ctx);
     
-    logf(FALSE, "Activated '%s'", name);
+    log_msg(FALSE, "Activated '%s'", name);
     return TRUE;
 }
 
@@ -142,10 +143,10 @@ static void on_deact_cb(GObject *src, GAsyncResult *res, gpointer user_data) {
     GError *err = NULL;
     ctx->ok = nm_client_deactivate_connection_finish(NM_CLIENT(src), res, &err);
     if (!ctx->ok) {
-        logf(FALSE, "Deactivate failed: %s", err ? err->message : "unknown");
+        log_msg(FALSE, "Deactivate failed: %s", err ? err->message : "unknown");
         g_clear_error(&err);
     } else {
-        logf(FALSE, "Deactivated connection");
+        log_msg(FALSE, "Deactivated connection");
     }
     if (ctx->loop) g_main_loop_quit(ctx->loop);
 }
@@ -158,19 +159,19 @@ static gboolean quit_loop_cb(gpointer data) {
 static gboolean down_and_wait(const char *name, guint timeout_ms) {
     NMDevice *dev = get_device();
     if (!dev) {
-        logf(FALSE, "down(): no device");
+        log_msg(FALSE, "down(): no device");
         return FALSE;
     }
 
     NMActiveConnection *ac = nm_device_get_active_connection(dev);
     if (!ac) {
-        logf(FALSE, "down(): no active connection on device");
+        log_msg(FALSE, "down(): no active connection on device");
         return TRUE;
     }
 
     const char *active_id = nm_active_connection_get_id(ac);
     if (!active_id || g_strcmp0(active_id, name) != 0) {
-        logf(FALSE, "down(): '%s' not active (active is '%s'), skipping",
+        log_msg(FALSE, "down(): '%s' not active (active is '%s'), skipping",
              name, active_id ? active_id : "");
         return TRUE;
     }
@@ -226,28 +227,31 @@ static gboolean has_non_apipa(GPtrArray *addrs) {
     return FALSE;
 }
 
-// prefer arping; fallback to ping
+// check if is gateway reachable via ARP
 static gboolean arping(const char *gw) {
-    gchar *argv1[] = { "arping", "-q", "-c", "1", "-w", "1", "-I", (gchar*)IFACE, (gchar*)gw, NULL };
-    gchar *argv2[] = { "ping", "-c", "1", "-W", "1", "-I", (gchar*)IFACE, (gchar*)gw, NULL };
+    gchar *arp = g_find_program_in_path("arping");
+    if (!arp) {
+        log_msg(FALSE, "arping not found in PATH");
+        return FALSE;
+    }
+
+    gchar *argv1[] = { arp, "-q", "-c", "1", "-w", "1",
+                        "-I", (gchar*)IFACE, (gchar*)gw, NULL };
     GError *err = NULL;
     gint status = 0;
+    gboolean ok = FALSE;
 
-    if (g_spawn_sync(NULL, argv1, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+    if (g_spawn_sync(NULL, argv1, NULL,
+                     G_SPAWN_STDOUT_TO_DEV_NULL |
+                     G_SPAWN_STDERR_TO_DEV_NULL,
                      NULL, NULL, NULL, NULL, &status, &err)) {
-        if (g_spawn_check_exit_status(status, NULL))
-            return TRUE;
+        ok = g_spawn_check_wait_status(status, NULL);
     } else {
+        log_msg(FALSE, "arping spawn failed: %s", err ? err->message : "unknown");
         g_clear_error(&err);
     }
 
-    if (g_spawn_sync(NULL, argv2, NULL, G_SPAWN_SEARCH_PATH | G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
-                     NULL, NULL, NULL, NULL, &status, &err)) {
-        if (g_spawn_check_exit_status(status, NULL))
-            return TRUE;
-    } else {
-        g_clear_error(&err);
-    }
+    g_free(arp);
     return FALSE;
 }
 
@@ -262,33 +266,33 @@ static gboolean any_ics_gateway_reachable(void) {
 static void maybe_switch(const char *target) {
     NMDevice *dev = get_device();
     if (!dev) {
-        logf(FALSE, "maybe_switch(): device not found");
+        log_msg(FALSE, "maybe_switch(): device not found");
         return;
     }
 
     const char *active = get_active_con_name(dev);
     if (g_strcmp0(active, target) == 0) {
-        logf(FALSE, "maybe_switch(): already on %s", target);
+        log_msg(FALSE, "maybe_switch(): already on %s", target);
         return;
     }
     gint64 t = now_s();
     if (t - last_switch < MINDWELL) {
-        logf(FALSE, "maybe_switch(): switched too recently (%lds ago)", (long)(t - last_switch));
+        log_msg(FALSE, "maybe_switch(): switched too recently (%lds ago)", (long)(t - last_switch));
         return;
     }
 
     const char *other = (g_strcmp0(target, SHARED_ID) == 0) ? CLIENT_ID : SHARED_ID;
-    logf(FALSE, "Switching to %s", target);
+    log_msg(FALSE, "Switching to %s", target);
     if (down_and_wait(other, 5000)) {
         last_switch = now_s();
         if (up(target)) {
             if (g_strcmp0(target, CLIENT_ID) == 0)
-                logf(TRUE, "ICS Gateway detected; switched to DHCP client mode");
+                log_msg(TRUE, "ICS Gateway detected; switched to DHCP client mode");
             else
-                logf(TRUE, "No ICS Gateway detected; switched to shared mode");
+                log_msg(TRUE, "No ICS Gateway detected; switched to shared mode");
         }
     } else {
-        logf(FALSE, "maybe_switch(): failed to drop other profile; not switching");
+        log_msg(FALSE, "maybe_switch(): failed to drop other profile; not switching");
     }
 }
 
@@ -297,7 +301,7 @@ static void client_probe(void) {
     if (t - last_probe < PROBE_EVERY) return;
     last_probe = t;
 
-    logf(FALSE, "Client probe: trying DHCP in CLIENT");
+    log_msg(FALSE, "Client probe: trying DHCP in CLIENT");
     up(CLIENT_ID);
     gint64 start = now_s();
 
@@ -311,7 +315,7 @@ static void client_probe(void) {
         if (addrs) g_ptr_array_free(addrs, TRUE);
 
         if (ok) {
-            logf(FALSE, "Client probe succeeded; staying CLIENT");
+            log_msg(FALSE, "Client probe succeeded; staying CLIENT");
             last_switch = now_s();
             last_gw_ok = now_s();
             return;
@@ -319,26 +323,26 @@ static void client_probe(void) {
         g_usleep(1000 * 1000);
     }
 
-    logf(FALSE, "Client probe failed; reverting to SHARED");
+    log_msg(FALSE, "Client probe failed; reverting to SHARED");
     up(SHARED_ID);
     last_switch = now_s();
 }
 
 static gboolean periodic_check(gpointer user_data) {
     (void)user_data;
-    logf(FALSE, "Periodic check");
+    log_msg(FALSE, "Periodic check");
 
     NMDevice *dev = get_device();
     if (!dev) {
-        logf(FALSE, "No device %s", IFACE);
+        log_msg(FALSE, "No device %s", IFACE);
         return G_SOURCE_CONTINUE;
     }
 
     if (carrier_up(dev)) {
-        logf(FALSE, "Link is up");
+        log_msg(FALSE, "Link is up");
         if (last_link_up == 0) last_link_up = now_s();
     } else {
-        logf(FALSE, "Link is down");
+        log_msg(FALSE, "Link is down");
         return G_SOURCE_CONTINUE;
     }
 
@@ -349,27 +353,28 @@ static gboolean periodic_check(gpointer user_data) {
 
     if (g_strcmp0(name, CLIENT_ID) == 0) {
         // CLIENT mode
-        gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata); // best-effort; requires NULL-terminated, so skip print if odd
-        logf(FALSE, "CLIENT: addrs=%s gw=%s", joined ? joined : "(…)", gw ? gw : "(none)");
+        // best-effort; requires NULL-terminated, so skip print if odd
+        gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
+        log_msg(FALSE, "CLIENT: addrs=%s gw=%s", joined ? joined : "(…)", gw ? gw : "(none)");
         g_free(joined);
 
         if (gw && arping(gw)) {
-            logf(FALSE, "CLIENT: gateway reachable");
+            log_msg(FALSE, "CLIENT: gateway reachable");
             last_gw_ok = now_s();
             g_ptr_array_free(addrs, TRUE);
             return G_SOURCE_CONTINUE;
         }
 
-        logf(FALSE, "CLIENT: gateway unreachable");
+        log_msg(FALSE, "CLIENT: gateway unreachable");
         gint64 since_ok = now_s() - (last_gw_ok ? last_gw_ok : last_link_up);
         if (since_ok >= GW_UNREACH_GRACE) {
-            logf(FALSE, "CLIENT: no gateway; switching to SHARED");
+            log_msg(FALSE, "CLIENT: no gateway; switching to SHARED");
             maybe_switch(SHARED_ID);
         } else if ((now_s() - last_link_up) >= FALLBACK_DELAY && !has_non_apipa(addrs)) {
-            logf(FALSE, "CLIENT: APIPA only; switching to SHARED");
+            log_msg(FALSE, "CLIENT: APIPA only; switching to SHARED");
             maybe_switch(SHARED_ID);
         } else {
-            logf(FALSE, "CLIENT: waiting");
+            log_msg(FALSE, "CLIENT: waiting");
         }
         g_ptr_array_free(addrs, TRUE);
         return G_SOURCE_CONTINUE;
@@ -378,14 +383,14 @@ static gboolean periodic_check(gpointer user_data) {
     if (g_strcmp0(name, SHARED_ID) == 0) {
         // SHARED mode
         gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
-        logf(FALSE, "SHARED: addrs=%s gw=%s", joined ? joined : "(…)", gw ? gw : "(none)");
+        log_msg(FALSE, "SHARED: addrs=%s gw=%s", joined ? joined : "(…)", gw ? gw : "(none)");
         g_free(joined);
 
         if (any_ics_gateway_reachable()) {
-            logf(FALSE, "SHARED: ICS gw detected; switching to CLIENT");
+            log_msg(FALSE, "SHARED: ICS gw detected; switching to CLIENT");
             maybe_switch(CLIENT_ID);
         } else {
-            logf(FALSE, "SHARED: no ICS gw detected; staying SHARED");
+            log_msg(FALSE, "SHARED: no ICS gw detected; staying SHARED");
         }
         g_ptr_array_free(addrs, TRUE);
         return G_SOURCE_CONTINUE;
@@ -402,14 +407,21 @@ static gboolean periodic_check(gpointer user_data) {
 
 static void on_sigint(int signum) {
     (void)signum;
-    logf(TRUE, "SIGINT received, exiting");
-    if (g_loop) g_main_loop_quit(g_loop);
+    log_msg(TRUE, "SIGINT received, exiting");
+    if (g_loop)
+        g_main_loop_quit(g_loop);
 }
 
 int main(int argc, char **argv) {
     (void)argc; (void)argv;
+
     const char *dbg = g_getenv(ENV_DEBUG);
     g_debug = (dbg && strcmp(dbg, "0") != 0);
+
+    const char *iface_env = g_getenv(ENV_IFACE);
+    if (iface_env && *iface_env) {
+        IFACE = iface_env;
+    }
 
     GError *err = NULL;
     g_client = nm_client_new(NULL, &err);
@@ -419,7 +431,7 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    logf(TRUE, "Starting ICS watcher (debug=%d) on %s", g_debug, IFACE);
+    log_msg(TRUE, "Starting ICS watcher (debug=%d) on %s", g_debug, IFACE);
 
     g_loop = g_main_loop_new(NULL, FALSE);
     g_timeout_add(LOOP_MS, periodic_check, NULL);

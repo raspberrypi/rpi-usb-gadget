@@ -7,8 +7,6 @@ Wants=NetworkManager.service
 [Service]
 Type=simple
 Environment=USB_GADGET_IFACE=usb0
-Environment=CLIENT_NAME=USB Gadget (client)
-Environment=SHARED_NAME=USB Gadget (shared)
 # Enable extra logs by uncommenting:
 #Environment=ICS_DEBUG=1
 ExecStart=/usr/libexec/rpi-usb-gadget/ics-watch

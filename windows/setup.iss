@@ -24,7 +24,7 @@ OutputBaseFilename=rpi-usb-gadget-driver-setup
 Compression=lzma2
 SolidCompression=yes
 LicenseFile=LICENSE.txt
-InfoBeforeFile=README.txt
+InfoBeforeFile=README.rtf
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64 arm64
@@ -46,7 +46,7 @@ Source: "raspberrypi-rndis.cat"; DestDir: "{app}\{#InstallSubDir}"; Flags: ignor
 Source: "uninstall-driver.ps1"; DestDir: "{app}\{#InstallSubDir}"; Flags: ignoreversion
 ; Docs shown by wizard
 Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "README.txt";  DestDir: "{app}"; Flags: ignoreversion
+Source: "README.rtf";  DestDir: "{app}"; Flags: ignoreversion
 
 [Run]
 ; Install the driver package into the Driver Store and bind it
@@ -64,7 +64,7 @@ Filename: "{sys}\WindowsPowerShell\v1.0\powershell.exe"; \
   Flags: runhidden waituntilterminated
 
 [Icons]
-Name: "{group}\Readme"; Filename: "{app}\README.txt"
+Name: "{group}\Readme"; Filename: "{app}\README.rtf"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 
 [Messages]

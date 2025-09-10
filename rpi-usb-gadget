@@ -1,20 +1,17 @@
-#!/bin/bash
+#!/bin/sh
 
-# check if the script is run as root
-if [ "$EUID" -ne 0 ]; then
-    echo -e "\e[31mPlease run this script as root\e[0m"
-    exit
+# ----- root + platform checks -----
+if [ "$(id -u)" -ne 0 ]; then
+    printf '\033[31mPlease run this script as root\033[0m\n' >&2
+    exit 1
 fi
 
-# check if the script is run on a Raspberry Pi
-if ! grep -q "Raspberry Pi" /proc/device-tree/model; then
-    echo -e "\e[31mThis script is for Raspberry Pi devices only\e[0m"
-    exit
+if ! [ -r /proc/device-tree/model ] || ! grep -q 'Raspberry Pi' /proc/device-tree/model; then
+    printf '\033[31mThis script is for Raspberry Pi devices only\033[0m\n' >&2
+    exit 1
 fi
 
-################################
-########### Settings ###########
-################################
+# ----- Settings -----
 NM_IFACE="${USB_GADGET_IFACE:-usb0}"
 
 CLIENT_NAME='USB Gadget (client)'
@@ -28,10 +25,10 @@ NM_WAIT_DOWN=5
 NM_WAIT_UP=15
 
 # modules-load + overlay
-mods_conf="/etc/modules-load.d/usb-gadget.conf"
-cfg_fw=/boot/firmware/config.txt
-cfg_legacy=/boot/config.txt
-overlay_line='dtoverlay=dwc2,dr_mode=peripheral'
+MODS_CONF="/etc/modules-load.d/usb-gadget.conf"
+CFG_FW=/boot/firmware/config.txt
+CFG_LEGACY=/boot/config.txt
+OVERLAY_LINE='dtoverlay=dwc2,dr_mode=peripheral'
 DNSMASQ_DIR=/etc/NetworkManager/dnsmasq-shared.d
 DNSMASQ_SNIPPET="$DNSMASQ_DIR/90-rpi-usb-gadget-lease.conf"
 
@@ -53,10 +50,10 @@ svc_disable_now() {
 }
 
 svc_status() {
-    have_systemctl || { echo "(no systemd)"; return; }
+    have_systemctl || { printf '(no systemd)\n'; return; }
     if systemctl --quiet is-enabled "$SERVICE"; then en=yes; else en=no; fi
     if systemctl --quiet is-active  "$SERVICE"; then ac=yes; else ac=no; fi
-    echo "ICS watcher: enabled=$en active=$ac"
+    printf "ICS watcher: enabled=$en active=$ac\n"
 }
 
 ################################
@@ -70,7 +67,7 @@ nm_up()   { nmcli -w "$NM_WAIT_UP"   con up   "$1" >/dev/null 2>&1 || true; }
 
 nm_ensure_client() {
     # DHCP client (for ICS); IPv6 disabled; short timeout; prefer routes via DHCP
-    if nmcli -t -f NAME connection show | grep -Fxq "$CLIENT_NAME"; then
+    if nmcli -t -f NAME connection show | grep -F -q -e "^$CLIENT_NAME$"; then
         nmcli connection modify "$CLIENT_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
@@ -95,7 +92,7 @@ nm_ensure_client() {
 
 nm_ensure_shared() {
     # Pi serves DHCP+NAT on 10.12.194.0/28; IPv6 disabled; do NOT autoconnect
-    if nmcli -t -f NAME connection show | grep -Fxq "$SHARED_NAME"; then
+    if nmcli -t -f NAME connection show | grep -F -q -e "^$SHARED_NAME$"; then
         nmcli connection modify "$SHARED_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
@@ -122,7 +119,7 @@ nm_remove_profiles() {
 }
 
 nm_dnsmasq_setup() {
-    install -d -m 0755 "$DNSMASQ_DIR"
+    mkdir -p "$DNSMASQ_DIR" && chmod 0755 "$DNSMASQ_DIR"
     : "${DNSMASQ_SNIPPET:=$DNSMASQ_DIR/90-rpi-usb-gadget-lease.conf}"
 
     cat >"$DNSMASQ_SNIPPET" <<'EOF'
@@ -137,7 +134,7 @@ quiet-dhcp
 EOF
 
     # If shared is currently active, bounce it so the new dnsmasq picks this up
-    if nmcli -t -f NAME con show --active | grep -Fxq "$SHARED_NAME"; then
+    if nmcli -t -f NAME con show --active | grep -F -q -e "^$SHARED_NAME$"; then
         nm_down "$SHARED_NAME"
         nm_up   "$SHARED_NAME"
     fi
@@ -147,20 +144,20 @@ nm_dnsmasq_remove() {
     rm -f "$DNSMASQ_SNIPPET" || true
     
     # Bounce only if the shared profile is active
-    if nmcli -t -f NAME con show --active | grep -Fxq "$SHARED_NAME"; then
+    if nmcli -t -f NAME con show --active | grep -F -q -e "^$SHARED_NAME$"; then
         nm_down "$SHARED_NAME"
         nm_up   "$SHARED_NAME"
     fi
 }
 
 nm_status() {
-  echo ":: NetworkManager:"
+  printf ':: NetworkManager:\n'
   if ! have_nmcli; then
-    echo "  (nmcli not found)"; return
+    printf '  (nmcli not found)\n'; return
   fi
 
   # Pull details for the gadget iface
-  local st fullst active ip4 gw
+  st=""
   fullst=$(nmcli -g GENERAL.STATE device show "$NM_IFACE" 2>/dev/null)
   st=$(printf '%s' "$fullst" | sed -n 's/.*(\(.*\)).*/\1/p')   # extract text in ()
   [ -n "$st" ] || st="$fullst"
@@ -195,28 +192,32 @@ case "$1" in
     on)      TURN_ON=true ;;
     off)     TURN_ON=false ;;
     toggle)
-        if [ -f "$mods_conf" ]; then
+        if [ -f "$MODS_CONF" ]; then
             TURN_ON=false
         fi
         ;;
     status)
-        if [ -f "$mods_conf" ]; then
-            echo -e "\e[33mUSB Gadget mode is on\e[0m"
+        if [ -f "$MODS_CONF" ]; then
+            printf '\033[33mUSB Gadget mode is on\033[0m\n'
         else
-            echo -e "\e[33mUSB Gadget mode is off\e[0m"
+            printf '\033[33mUSB Gadget mode is off\033[0m\n'
         fi
         nm_status
         svc_status
         exit 0
         ;;
-    help|""|*)
-        echo "Usage: rpi-usb-gadget [on|off|toggle|status|help]"
+    help|"")
+        printf "Usage: rpi-usb-gadget [on|off|toggle|status|help]\n"
+        exit 1
+        ;;
+    *)
+        printf "Usage: rpi-usb-gadget [on|off|toggle|status|help]\n"
         exit 1
         ;;
 esac
 
 if [ "$TURN_ON" = false ]; then
-    echo -e "Turning \e[31moff\e[0m USB Gadget mode"
+    printf 'Turning \033[31moff\033[0m USB Gadget mode\n'
 
     # stop ICS watcher first
     svc_disable_now
@@ -231,17 +232,17 @@ if [ "$TURN_ON" = false ]; then
     fi
 
     # kernel gadget off
-    rm -f "$mods_conf"
-    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
-    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
+    rm -f "$MODS_CONF"
+    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
+    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
 
 else
-    echo -e "Turning \e[32mon\e[0m USB Gadget mode"
-    printf "g_ether\n" > "$mods_conf"
+    printf 'Turning \033[32mon\033[0m USB Gadget mode\n'
+    printf "g_ether\n" > "$MODS_CONF"
     # ensure overlay present once
-    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_fw" 2>/dev/null || true
-    sed -i "/^${overlay_line//\//\\/}$/d" "$cfg_legacy" 2>/dev/null || true
-    echo "$overlay_line" >> "$cfg_fw" 2>/dev/null || echo "$overlay_line" >> "$cfg_legacy"
+    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
+    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
+    printf '%s\n' "$OVERLAY_LINE" >> "$CFG_FW" 2>/dev/null || printf '%s\n' "$OVERLAY_LINE" >> "$CFG_LEGACY"
 
     # NetworkManager: dnsmasq + client profile + shared profile
     if have_nmcli; then
@@ -257,8 +258,8 @@ else
         # start ICS watcher so it can auto-switch client/shared
         svc_enable_now
     else
-        echo -e "\e[33mNetworkManager (nmcli) not found; skipping NM auto-config.\e[0m"
+        printf '\033[33mNetworkManager (nmcli) not found; skipping NM auto-config.\033[0m\n'
     fi
 fi
 
-echo "Reboot to apply changes"
+printf "Reboot to apply changes\n"

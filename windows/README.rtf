@@ -1,0 +1,56 @@
+{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 \fmodern Courier;}}
+{\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
+\widowctrl\hyphauto
+
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel0 \b \fs36 Raspberry Pi USB RNDIS Driver (Windows)\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 This installer adds support for the {\b Raspberry Pi USB Remote NDIS Network Device} on Windows. When a Raspberry Pi is configured in USB gadget mode, Windows will recognize it as a USB Ethernet adapter and create a new network interface. This enables networking between your PC and the Pi over a single USB cable and allows features provided by the {\f1 rpi-usb-gadget} package (e.g., Internet Connection Sharing to the Pi).\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 What this installs\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Driver package for device ID: {\f1 USB\\VID_2E8A&PID_10EC}\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Uses Microsoft\u8217's in-box RNDIS components ({\f1 netrndis.inf}/{\f1 usbrndis6})\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Display name: {\b Raspberry Pi USB Remote NDIS Network Device}\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Files are staged in the Windows Driver Store via {\f1 pnputil}.\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Supported systems\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Windows 10} (64-bit) and {\b Windows 11} (64-bit), including ARM64 (not tested)\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Admin rights are required to install drivers.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Secure Boot/driver enforcement: the provided catalog ({\f1 raspberrypi-rndis.cat}) must be properly signed in production environments.\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Prerequisites on the Raspberry Pi\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 On the Pi, install and enable the gadget stack (for example using the {\f1 rpi-usb-gadget} package). Use a {\b data-capable} USB-C cable connected to the Pi\u8217's USB-C port.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Installation (on Windows)\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 1.\tx360\tab Close applications that might alter network settings (VPNs, firewalls, etc.).\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 2.\tx360\tab Run {\b Raspberry Pi USB RNDIS Driver} setup {\b as Administrator}.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 3.\tx360\tab After setup completes, {\b plug the Pi} into the PC via USB-C.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 4.\tx360\tab Windows will detect and bind the {\b Raspberry Pi USB Remote NDIS Network Device}. You should see a new \u8220"Ethernet\u8221" adapter in {\i Settings \u8594? Network & Internet} (or Device Manager \u8594? Network adapters).\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 First connection & networking\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 You have two typical ways to network the Pi and PC:\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel2 \b \fs28 A) Host-shares-Internet to the Pi (Windows ICS)\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 1.\tx360\tab On Windows, open {\b Settings \u8594? Network & Internet \u8594? Advanced network settings}.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 2.\tx360\tab Select your primary Internet adapter \u8594? {\b Allow other network users to connect} (Internet Connection Sharing).\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 3.\tx360\tab Choose the {\b Raspberry Pi USB\u8230?} adapter as the shared connection. Windows usually assigns gateway {\b 192.168.137.1} to the shared adapter.\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel2 \b \fs28 B) Pi provides a shared network (Pi NAT/DHCP)\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 If you configured the Pi to serve DHCP/NAT on the gadget interface (e.g.\u160?{\f1 10.12.194.0/28}), Windows will obtain an IP from the Pi automatically once the interface is up.\par}
+{\pard \ql \f0 \sa180 \li720 \fi0 The {\f1 rpi-usb-gadget-ics} service can automatically switch between {\b client} (DHCP via host ICS) and {\b shared} modes, depending on whether a gateway is detected on the USB link.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Verifying\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Device Manager \u8594? Network adapters} should list {\b Raspberry Pi USB Remote NDIS Network Device} without warnings.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\f1 Control Panel \u8594? Network Connections} shows a new {\b Ethernet} adapter; {\f1 ipconfig} should display an IPv4 address once connected.\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Uninstall\par}
+{\pard \ql \f0 \sa180 \li360 \fi-360 \bullet \tx360\tab Use {\b Apps & features} to remove {\b Raspberry Pi USB RNDIS Driver}, or\par}
+{\pard \ql \f0 \sa180 \li360 \fi-360 \bullet \tx360\tab The uninstaller runs a PowerShell script to remove matching driver packages from the Driver Store using {\f1 pnputil}.\par}
+{\pard \ql \f0 \sa180 \li360 \fi-360 \bullet \tx360\tab Manual removal (advanced):\par}
+{\pard \ql \f0 \sa180 \li360 \fi0 \f1 pnputil /enum-drivers | findstr /I "Raspberry Pi RNDIS"\line
+pnputil /delete-driver <PublishedName>.inf /uninstall /force\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Troubleshooting\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Device shows as Unknown / Code 10:} try a different USB-C cable/port; ensure the Pi is in gadget mode.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Driver refused / signature error:} ensure the catalog is properly signed and timestamped; Secure Boot may block unsigned drivers.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b No IP connectivity:} check whether you expect ICS (host gateway {\f1 192.168.137.1}) or Pi-side DHCP/NAT; only enable one at a time.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Firewall/VPN interference:} some security software blocks RNDIS or ICS; temporarily disable or add an allow-rule.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab {\b Corporate policy blocks RNDIS:} some environments disable RNDIS for security; contact your administrator.\sa180\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 Security note\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 RNDIS is a legacy USB networking protocol. Use only with trusted devices and networks. Keep your OS and security software up to date.\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel1 \b \fs32 License & support\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Copyright \u169? 2025 Raspberry Pi Ltd.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Driver uses Microsoft in-box components; this package supplies matching metadata and catalog.\par}
+{\pard \ql \f0 \sa0 \li360 \fi-360 \bullet \tx360\tab Project page: {\field{\*\fldinst{HYPERLINK "https://github.com/raspberrypi/rpi-usb-gadget"}}{\fldrslt{\ul
+https://github.com/raspberrypi/rpi-usb-gadget
+}}}
+\sa180\par}
+}
