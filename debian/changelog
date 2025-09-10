@@ -8,6 +8,12 @@ rpi-usb-gadget (1.0.2) trixie; urgency=medium
 
  -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 10 Sep 2025 18:14:47 +0100
 
+rpi-usb-gadget (1.0.1~bpo12+1) bookworm; urgency=medium
+
+  * Rebuild for bookworm-backports.
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 10 Sep 2025 15:03:45 +0100
+
 rpi-usb-gadget (1.0.1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).
