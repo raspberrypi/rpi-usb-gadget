@@ -132,6 +132,29 @@ static gboolean up(const char *name) {
     return TRUE;
 }
 
+typedef struct {
+    GMainLoop *loop;
+    gboolean ok;
+} DeactCtx;
+
+static void on_deact_cb(GObject *src, GAsyncResult *res, gpointer user_data) {
+    DeactCtx *ctx = user_data;
+    GError *err = NULL;
+    ctx->ok = nm_client_deactivate_connection_finish(NM_CLIENT(src), res, &err);
+    if (!ctx->ok) {
+        logf(FALSE, "Deactivate failed: %s", err ? err->message : "unknown");
+        g_clear_error(&err);
+    } else {
+        logf(FALSE, "Deactivated connection");
+    }
+    if (ctx->loop) g_main_loop_quit(ctx->loop);
+}
+
+static gboolean quit_loop_cb(gpointer data) {
+    g_main_loop_quit((GMainLoop *)data);
+    return G_SOURCE_REMOVE;
+}
+
 static gboolean down_and_wait(const char *name, guint timeout_ms) {
     NMDevice *dev = get_device();
     if (!dev) {
@@ -152,31 +175,17 @@ static gboolean down_and_wait(const char *name, guint timeout_ms) {
         return TRUE;
     }
 
-    GError *err = NULL;
-    if (!nm_client_deactivate_connection(g_client, ac, NULL, &err)) {
-        logf(FALSE, "Disconnect ignored: %s", err ? err->message : "unknown");
-        g_clear_error(&err);
-        return FALSE;
-    }
+    DeactCtx ctx = {0};
+    ctx.loop = g_main_loop_new(NULL, FALSE);
 
-    // poll until inactive or timeout
-    guint waited = 0;
-    while (waited < timeout_ms) {
-        g_usleep(50 * 1000); // 50ms
-        waited += 50;
-        ac = nm_device_get_active_connection(dev);
-        if (!ac) {
-            logf(FALSE, "Disconnected from '%s'", name);
-            return TRUE;
-        }
-        const char *cur = nm_active_connection_get_id(ac);
-        if (!cur || g_strcmp0(cur, name) != 0) {
-            logf(FALSE, "Deactivated '%s'", name);
-            return TRUE;
-        }
-    }
-    logf(FALSE, "down(): timeout waiting for '%s' to deactivate", name);
-    return FALSE;
+    nm_client_deactivate_connection_async(g_client, ac, NULL, on_deact_cb, &ctx);
+
+    guint to = g_timeout_add(timeout_ms, quit_loop_cb, ctx.loop);
+    g_main_loop_run(ctx.loop);
+    g_source_remove(to);
+    g_main_loop_unref(ctx.loop);
+
+    return ctx.ok;
 }
 
 static gboolean carrier_up(NMDevice *dev) {
