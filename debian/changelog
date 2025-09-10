@@ -1,3 +1,11 @@
+rpi-usb-gadget (1.0.1-1) trixie; urgency=medium
+
+  * Initial proper Debian packaging (dh/compat 13).
+  * Switch to NetworkManager for networking
+  * Improved support for Windows 11 and macOS 26
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 10 Sep 2025 15:00:09 +0100
+
 rpi-usb-gadget (1.0.1) trixie; urgency=medium
 
   * Initial proper Debian packaging (dh/compat 13).

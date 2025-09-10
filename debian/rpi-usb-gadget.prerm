@@ -1,6 +1,15 @@
 #!/bin/sh
 set -e
-if [ -x /bin/systemctl ] || [ -x /usr/bin/systemctl ]; then
-  systemctl --no-reload disable --now rpi-usb-gadget-ics.service 2>/dev/null || true
-fi
+
+# TODO: maybe remove because dh_installsystemd already
+case "$1" in
+  remove|deconfigure)
+    if command -v deb-systemd-invoke >/dev/null 2>&1; then
+      deb-systemd-invoke stop rpi-usb-gadget-ics.service >/dev/null || true
+      deb-systemd-invoke disable rpi-usb-gadget-ics.service >/dev/null || true
+    fi
+    ;;
+esac
+
+#DEBHELPER#
 exit 0
