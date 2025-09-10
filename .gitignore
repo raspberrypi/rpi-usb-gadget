@@ -13,6 +13,38 @@
 *.asc
 *.exe
 thumb.txt
+*.log
+out/
+
+# Debian packaging byproducts
+debian/tmp
+debian/*-dbgsym/           # staging for debug packages if present
+debian/*-stamp
+debian/*.log
+debian/*.debhelper
+debian/*.debhelper.*
+debian/*.substvars
+debian/rpi-usb-gadget
+debian/files
+
+# Quilt working dir (generated)
+debian/.pc/
+
+# Build outputs in repo root
+*.dsc
+*.build
+*.buildinfo
+*.changes
+*.tar.gz
+*.tar.xz
+*.debian.tar.*
+*.deb
+
+# Local build artefacts
+*.o
+*.a
+ics-watch                 # the built binary (rename if different)
+compile_commands.json
 
 # Created by https://www.toptal.com/developers/gitignore/api/linux,macos,windows,powershell
 # Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,windows,powershell

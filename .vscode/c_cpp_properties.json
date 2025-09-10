@@ -1,0 +1,50 @@
+{
+    "version": 4,
+    "configurations": [
+        {
+            "name": "RPi aarch64 (native)",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "intelliSenseMode": "linux-gcc-arm64",
+            "defines": ["_GNU_SOURCE"],
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/usr/include",
+                "/usr/include/libnm",
+                "/usr/include/glib-2.0",
+                "/usr/include/gio-unix-2.0",
+                "/usr/lib/aarch64-linux-gnu/glib-2.0/include"
+            ],
+            "compilerArgs": [
+                "-std=c17",
+                "-Wall",
+                "-Wextra",
+                "-Wformat=2",
+                "-Werror=format-security"
+            ]
+        },
+        {
+        "name": "RPi armhf (cross, optional)",
+        "intelliSenseMode": "linux-gcc-arm",
+        "compilerPath": "/usr/bin/arm-linux-gnueabihf-gcc",
+        "cStandard": "c17",
+        "cppStandard": "c++17",
+        "defines": ["_GNU_SOURCE"],
+        "includePath": [
+            "${workspaceFolder}/**",
+            "/usr/include",
+            "/usr/include/libnm",
+            "/usr/include/glib-2.0",
+            "/usr/include/gio-unix-2.0",
+            "/usr/lib/arm-linux-gnueabihf/glib-2.0/include"
+        ],
+        "compilerArgs": [
+            "-std=gnu17",
+            "-Wall",
+            "-Wextra",
+            "-Wformat=2",
+            "-Werror=format-security"
+        ]
+        }
+    ]
+}

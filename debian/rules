@@ -2,10 +2,18 @@
 
 export DEB_BUILD_MAINT_OPTIONS = hardening=+all
 
+export DEB_CFLAGS_MAINT_APPEND   = -std=gnu17 -Wall -Wextra -Wformat=2 -Werror=format-security
+export DEB_CPPFLAGS_MAINT_APPEND =
+export DEB_LDFLAGS_MAINT_APPEND  =
+
 %:
 	dh $@
 
 override_dh_installsystemd:
-	# Install the unit but leave it disabled/inactive
-	# CLI toggler controls it.
+	# Install the unit but leave it disabled/inactive; CLI toggler controls it.
 	dh_installsystemd --no-enable --no-start
+
+override_dh_auto_build:
+	$(CC) $(CFLAGS) $(CPPFLAGS) -O2 ics-watch.c -o ics-watch \
+	  $(shell pkg-config --cflags --libs libnm glib-2.0 gio-2.0) \
+	  $(LDFLAGS)

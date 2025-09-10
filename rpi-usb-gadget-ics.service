@@ -11,7 +11,7 @@ Environment=CLIENT_NAME=USB Gadget (client)
 Environment=SHARED_NAME=USB Gadget (shared)
 # Enable extra logs by uncommenting:
 #Environment=ICS_DEBUG=1
-ExecStart=/usr/libexec/rpi-usb-gadget/ics-watch.py
+ExecStart=/usr/libexec/rpi-usb-gadget/ics-watch
 Restart=always
 RestartSec=3
 StandardOutput=journal

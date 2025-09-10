@@ -4,7 +4,7 @@
 
 #define MyAppName        "Raspberry Pi USB RNDIS Driver"
 #define MyAppVersion     "1.0.0"
-#define MyAppPublisher   "Raspberry Pi Ltd."
+#define MyAppPublisher   "Raspberry Pi Ltd"
 #define MyAppURL         "https://github.com/raspberrypi/rpi-usb-gadget"
 #define MyAppExe         "pnputil.exe"
 #define DriverInfName    "raspberrypi-rndis.inf"
@@ -17,7 +17,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-DefaultDirName={autopf}\Raspberry Pi\USB RNDIS Driver
+DefaultDirName={autopf}\{#MyAppPublisher}\USB RNDIS Driver
 DefaultGroupName=Raspberry Pi
 OutputDir=.
 OutputBaseFilename=rpi-usb-gadget-driver-setup

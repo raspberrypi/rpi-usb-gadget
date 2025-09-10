@@ -3,7 +3,7 @@ g_ether.conf                            usr/lib/modprobe.d/
 
 # helper scripts/binaries
 rpi-usb-gadget                          usr/bin/
-ics-watch.py                            usr/libexec/rpi-usb-gadget/
+ics-watch                               usr/libexec/rpi-usb-gadget/
 
 # Udev Rules
 udev/99-rpi-usb-gadget-hint.rules       usr/lib/udev/rules.d/
