@@ -22,7 +22,7 @@ SHARED_ADDR="10.12.194.1/28"
 CLIENT_DHCP_TIMEOUT=6
 CLIENT_ROUTE_METRIC=100
 NM_WAIT_DOWN=5
-NM_WAIT_UP=15
+NM_WAIT_UP=10
 
 # modules-load + overlay
 MODS_CONF="/etc/modules-load.d/usb-gadget.conf"
