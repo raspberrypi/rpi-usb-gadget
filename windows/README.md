@@ -5,7 +5,7 @@ When a Raspberry Pi is configured in USB gadget mode, Windows will recognize it 
 
 ## What this installs
 
-* Driver package for device ID: `USB\VID_2E8A&PID_10EC`
+* Driver package for device ID: `USB\VID_2E8A&PID_0013`
 * Uses Microsoft’s in-box RNDIS components (`netrndis.inf`/`usbrndis6`)
 * Display name: **Raspberry Pi USB Remote NDIS Network Device**
 * Files are staged in the Windows Driver Store via `pnputil`.
