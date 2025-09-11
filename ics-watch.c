@@ -25,7 +25,7 @@ static const char *ICS_GWS[] = { "192.168.137.1", "192.168.2.1", "10.42.0.1" };
 static const size_t ICS_GWS_N = 3;
 
 // Tunables (seconds/ms)
-static const guint  LOOP_MS             = 3000; // main loop tick
+static const guint  LOOP_MS             = 4000; // main loop tick
 static const gint64 CLIENT_PROBE_WINDOW = 15;   // seconds we allow DHCP to succeed after switching to CLIENT
 static const gint64 BACKOFF_AFTER_FAIL  = 15;   // seconds to wait in SHARED after a failed CLIENT try
 static const gint64 MINDWELL            = 2;    // anti-flap
