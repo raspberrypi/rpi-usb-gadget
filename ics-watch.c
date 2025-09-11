@@ -27,8 +27,9 @@ static const size_t ICS_GWS_N = 3;
 // Tunables (seconds/ms)
 static const guint  LOOP_MS             = 3000; // main loop tick
 static const gint64 CLIENT_PROBE_WINDOW = 15;   // seconds we allow DHCP to succeed after switching to CLIENT
-static const gint64 BACKOFF_AFTER_FAIL  = 60;   // seconds to wait in SHARED after a failed CLIENT try
+static const gint64 BACKOFF_AFTER_FAIL  = 15;   // seconds to wait in SHARED after a failed CLIENT try
 static const gint64 MINDWELL            = 2;    // anti-flap
+static const gint64 GW_LOSS_GRACE       = 10;   // how long to tolerate a dead gateway in CLIENT
 
 static gboolean     g_debug     = FALSE;
 static GMainLoop    *g_loop     = NULL;
@@ -38,6 +39,7 @@ static NMClient     *g_client   = NULL;
 static gint64 last_switch       = 0;
 static gint64 client_deadline   = 0;  // 0 = not probing; otherwise time when CLIENT must have lease/gw
 static gint64 backoff_until     = 0;  // 0 = no backoff; otherwise do not try CLIENT before this time
+static gint64 last_gw_ok        = 0;  // last time we saw a working gateway in CLIENT mode
 
 // --- helpers -----------------------------------------------------------------
 
@@ -306,6 +308,7 @@ static void maybe_switch(const char *target) {
         if (up(target)) {
             if (g_strcmp0(target, CLIENT_ID) == 0) {
                 client_deadline = now_s() + CLIENT_PROBE_WINDOW;
+                last_gw_ok = 0; // <- reset; we haven't proved the GW yet
                 log_msg(TRUE, "Trying DHCP client mode (deadline in %lds)", (long)CLIENT_PROBE_WINDOW);
             } else {
                 log_msg(TRUE, "Switched to shared mode");
@@ -336,28 +339,59 @@ static gboolean periodic_check(gpointer user_data) {
     ip4_config(dev, &addrs, &gw);
 
     if (g_strcmp0(name, CLIENT_ID) == 0) {
-        // CLIENT: success = non-APIPA + gateway present (NM learned default route)
+        // CLIENT mode
         const gboolean ok_ip = has_non_apipa(addrs);
+        const gint64   now   = now_s();
 
-        if (ok_ip && gw) {
-            client_deadline = 0; // we’re good, hold CLIENT
+        // If we don't even have a non-APIPA or a default GW yet, keep probing until deadline expires.
+        if (!ok_ip || !gw) {
+            if (client_deadline == 0)
+                client_deadline = now + CLIENT_PROBE_WINDOW;
+            const gint64 left = client_deadline - now;
+            gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
+            if (left > 0) {
+                log_msg(FALSE, "CLIENT waiting: addrs=%s gw=%s (deadline %lds)",
+                        joined ? joined : "(…)", gw ? gw : "(none)", (long)left);
+            } else {
+                log_msg(FALSE, "CLIENT failed (APIPA/no GW); back to SHARED, backoff %lds",
+                        (long)BACKOFF_AFTER_FAIL);
+                backoff_until = now + BACKOFF_AFTER_FAIL;
+                maybe_switch(SHARED_ID);
+            }
+
+            g_free(joined);
+            g_ptr_array_free(addrs, TRUE);
+            return G_SOURCE_CONTINUE;
+        }
+
+        // We have non-APIPA and a GW configured — validate that the GW actually answers ARP.
+        if (arping(gw)) {
+            last_gw_ok = now;
             gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
             log_msg(FALSE, "CLIENT OK: addrs=%s gw=%s", joined ? joined : "(…)", gw);
             g_free(joined);
-        } else {
-            if (client_deadline == 0) client_deadline = now_s() + CLIENT_PROBE_WINDOW;
-            gint64 left = client_deadline - now_s();
-            if (left > 0) {
-                gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
-                log_msg(FALSE, "CLIENT waiting: addrs=%s gw=%s (deadline %lds)",
-                        joined ? joined : "(…)", gw ? gw : "(none)", (long)left);
-                g_free(joined);
-            } else {
-                log_msg(FALSE, "CLIENT failed (APIPA/no GW); back to SHARED, backoff %lds", (long)BACKOFF_AFTER_FAIL);
-                backoff_until = now_s() + BACKOFF_AFTER_FAIL;
-                maybe_switch(SHARED_ID);
-            }
+            g_ptr_array_free(addrs, TRUE);
+            return G_SOURCE_CONTINUE;
         }
+
+        // GW not responding; hold CLIENT for a short grace, then fall back to SHARED.
+        if (last_gw_ok == 0)
+            last_gw_ok = now; // start the grace window the first time it fails
+        const gint64 since_ok = now - last_gw_ok;
+        const gint64 left = (since_ok < GW_LOSS_GRACE) ? (GW_LOSS_GRACE - since_ok) : 0;
+
+        if (left > 0) {
+            gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
+            log_msg(FALSE, "CLIENT: GW %s not responding; grace %lds left (addrs=%s)",
+                    gw, (long)left, joined ? joined : "(…)");
+            g_free(joined);
+        } else {
+            log_msg(FALSE, "CLIENT: GW %s lost for >=%lds; back to SHARED (backoff %lds)",
+                    gw, (long)GW_LOSS_GRACE, (long)BACKOFF_AFTER_FAIL);
+            backoff_until = now + BACKOFF_AFTER_FAIL;
+            maybe_switch(SHARED_ID);
+        }
+
         g_ptr_array_free(addrs, TRUE);
         return G_SOURCE_CONTINUE;
     }
