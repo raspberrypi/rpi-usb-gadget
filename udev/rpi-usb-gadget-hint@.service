@@ -1,0 +1,8 @@
+[Unit]
+Description=USB gadget host hint (%I)
+Documentation=man:udev(7)
+DefaultDependencies=no
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/rpi-usb-gadget/host_hint.sh %I

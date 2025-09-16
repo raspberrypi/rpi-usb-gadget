@@ -1,9 +1,13 @@
 #!/bin/sh
 set -eu
 
-MSG="[rpi-usb-gadget] Windows users: to use USB Ethernet, install the Raspberry Pi RNDIS driver on the Windows PC. See: https://www.raspberrypi.com/documentation/computers/usb-gadget.html#rndis-driver"
-if [ -w /dev/kmsg ]; then
-  /usr/bin/printf "<5>%s\n" "$MSG" > /dev/kmsg || true     # <5>=KERN_NOTICE
-else
-  /usr/bin/logger -p kern.notice -t rpi-usb-gadget "$MSG" || true
-fi
+IFACE="${1:-usb0}"
+STAMP_DIR=/run/rpi-usb-gadget
+STAMP="$STAMP_DIR/hint-$IFACE"
+
+mkdir -p "$STAMP_DIR"
+[ -e "$STAMP" ] && exit 0
+: > "$STAMP"
+
+MSG="Windows users: to use USB Ethernet, install the Raspberry Pi RNDIS driver on the Windows PC. See: https://www.raspberrypi.com/documentation/computers/usb-gadget.html#rndis-driver"
+logger -p kern.notice -t rpi-usb-gadget -- "$MSG"

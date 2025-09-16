@@ -12,3 +12,4 @@ udev/host_hint.sh                       usr/libexec/rpi-usb-gadget/
 
 # Systemd service
 rpi-usb-gadget-ics.service              usr/lib/systemd/system/
+rpi-usb-gadget-hint@.service            usr/lib/systemd/system/

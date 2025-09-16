@@ -1,5 +1,5 @@
 # Log a host hint as soon as the usb* net iface appears (when usb-gadget is enabled)
 ACTION=="add", SUBSYSTEM=="net", KERNEL=="usb*",
-  ENV{ID_NET_DRIVER}=="g_ether|u_ether",
+  ENV{ID_NET_DRIVER}=="g_ether",
   TEST=="/etc/modules-load.d/usb-gadget.conf",
-  RUN+="/usr/libexec/rpi-usb-gadget/host_hint.sh %k"
+  TAG+="systemd", ENV{SYSTEMD_WANTS}="rpi-usb-gadget-hint@%k.service"

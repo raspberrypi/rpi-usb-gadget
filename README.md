@@ -136,6 +136,72 @@ Simply plug your Raspberry Pi into your PC/laptop using a USB cable, and it will
 
 You can then connect to it via SSH, transfer files, or use remote development tools like VS Code.
 
+Got it—here’s a cleaned-up, drop-in README section tailored for Windows with your points baked in.
+
+## Windows setup & troubleshooting (ICS + RNDIS)
+
+When the gadget is working on Windows, you should see a network adapter named:
+
+**Raspberry Pi USB Remote NDIS Network Device**
+
+If Windows doesn't show this adapter in Device Manager or the Control Panel, the Raspberry Pi RNDIS driver isn’t installed.
+👉 Install it from the project’s Releases:
+**[https://github.com/raspberrypi/rpi-usb-gadget/releases](https://github.com/raspberrypi/rpi-usb-gadget/releases)**
+
+### How ICS is supposed to look (on Windows)
+
+* Turn on **Internet Connection Sharing (ICS)** on your **upstream** adapter (usually Wi-Fi).
+  In the ICS dialog, set the **Home networking connection** to **Raspberry Pi USB Remote NDIS Network Device**.
+* Windows assigns **192.168.137.1/24** to the gadget NIC and runs a DHCP server.
+* The Pi (in **CLIENT** profile) gets an address like **192.168.137.x** with gateway **192.168.137.1**.
+* If ICS is **off**, the Pi will switch to **SHARED** mode and serve **10.12.194.0/28** to the host.
+
+### Symptoms & what they mean
+
+* **Can’t reach the Pi by hostname** (or `ping -4 <hostname>` fails), and on the Pi you see the ICS watcher/profile **flapping** between *CLIENT* and *SHARED*:
+  Windows likely didn’t bind ICS to the gadget NIC or got confused after a reboot/cable replug.
+* **Adapter shows “Unidentified adapter”**:
+  The RNDIS driver isn’t installed—install from the Releases page above.
+* **Pi shows 169.254.x.x (APIPA)** instead of 192.168.137.x:
+  Windows’ DHCP isn’t serving—ICS isn’t actually active on the gadget NIC.
+
+### Quick fixes (most issues)
+
+1. **Toggle ICS on the upstream adapter**
+
+   * Open the upstream adapter’s **Sharing** tab.
+   * Uncheck *“Allow other network users to connect…”* → **OK**.
+   * Reopen the dialog, re-check it, and pick **Raspberry Pi USB Remote NDIS Network Device** as the **Home networking connection**.
+   * Optional: Disable/Enable the gadget NIC in Device Manager or unplug/replug the USB cable.
+
+2. **Driver fix (if “Unidentified adapter”)**
+
+   * Install the RNDIS driver from the Releases page.
+   * Then repeat the ICS toggle above.
+
+3. **Clear stale IPs (Windows quirk)**
+
+   * If the Pi wasn’t connected during boot, Windows sometimes “shares” to a different NIC and leaves a **static** IP on the gadget NIC.
+   * Toggling ICS as above usually resets it. If not, open the gadget NIC’s IPv4 properties and set it back to **Obtain an IP address automatically**, then re-enable ICS.
+
+4. **Nudge the Pi**
+
+   * From the Pi (UART/console/SSH), you can poke the client profile:
+
+     ```
+     sudo nmcli con up 'USB Gadget (client)'
+     ```
+   * Or reboot the Pi after you’ve corrected ICS on Windows.
+
+### Useful checks
+
+* On Windows, run `ipconfig`. The gadget NIC should be **192.168.137.1** when ICS is on.
+* On the Pi, run `ip -4 a show usb0`:
+
+  * **CLIENT (ICS)**: you should see **192.168.137.x/24** with a default route to **192.168.137.1**.
+  * **SHARED**: you should see **10.12.194.1/28** and no default route to the host.
+
+
 ## Using Raspberry Pi Imager
 
 You can also configure this functionality directly within the [Raspberry Pi Imager](https://raspberrypi.com/software) tool. Simply select "USB Gadget mode" in the `Interfaces & Features` customization tab to enable it and make sure you have also configured ssh for remote access in imager.
