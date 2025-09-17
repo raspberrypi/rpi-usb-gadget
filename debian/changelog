@@ -1,3 +1,20 @@
+rpi-usb-gadget (1.0.3) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Update PID to officially reserved one
+  * Simplify ICS Watcher
+  * Reduce backoff after fail
+  * Fix udev rule
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 17 Sep 2025 10:51:17 +0100
+
+rpi-usb-gadget (1.0.2~bpo12+1) bookworm; urgency=medium
+
+  [ Paul Oberosler ]
+  * Rebuild for bookworm-backports.
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 10 Sep 2025 18:54:47 +0100
+
 rpi-usb-gadget (1.0.2) trixie; urgency=medium
 
   [ Paul Oberosler ]
