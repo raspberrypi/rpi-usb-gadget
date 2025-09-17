@@ -5,11 +5,8 @@ g_ether.conf                            usr/lib/modprobe.d/
 rpi-usb-gadget                          usr/bin/
 ics-watch                               usr/libexec/rpi-usb-gadget/
 
-# Udev Rules
-udev/99-rpi-usb-gadget-hint.rules       usr/lib/udev/rules.d/
-# Udev Private helper (namespaced)
-udev/host_hint.sh                       usr/libexec/rpi-usb-gadget/
+# Motd hook
+99-rpi-usb-gadget                       etc/update-motd.d/
 
 # Systemd service
 rpi-usb-gadget-ics.service              usr/lib/systemd/system/
-udev/rpi-usb-gadget-hint@.service       usr/lib/systemd/system/

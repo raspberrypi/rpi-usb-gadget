@@ -16,6 +16,6 @@ sed -i "s/<serial>/$SERIAL/g" /usr/lib/modprobe.d/g_ether.conf
 
 # Ensure our helper scripts are executable (in case VCS lost +x)
 chmod 0755 /usr/bin/rpi-usb-gadget 2>/dev/null || true
-chmod 0755 /usr/libexec/rpi-usb-gadget/host-hint.sh 2>/dev/null || true
+chmod 0755 /etc/update-motd.d/99-rpi-usb-gadget 2>/dev/null || true
 
 exit 0

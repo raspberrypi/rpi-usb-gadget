@@ -18,7 +18,6 @@ Architecture: any
 Depends:
   ${shlibs:Depends},
   ${misc:Depends},
-  udev,
   systemd,
   network-manager,
   iputils-arping

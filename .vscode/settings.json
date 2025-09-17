@@ -8,6 +8,7 @@
         "control": "yaml",
         "copyright": "yaml",
         "rules": "makefile",
-        "changelog": "markdown"
+        "changelog": "markdown",
+        "99-rpi-usb-gadget": "shellscript"
     }
 }

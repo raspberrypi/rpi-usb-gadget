@@ -1,0 +1,15 @@
+#!/bin/sh
+# Show a Windows RNDIS hint only while the USB gadget is enabled.
+# Enabled = /etc/modules-load.d/usb-gadget.conf exists.
+
+CONF_FILE=/etc/modules-load.d/usb-gadget.conf
+
+if [ -f "$CONF_FILE" ]; then
+    echo
+    echo "⚠️  USB Gadget hint"
+    echo "Windows users: to use USB Ethernet, install the Raspberry Pi RNDIS driver"
+    echo "→ https://www.raspberrypi.com/documentation/computers/usb-gadget.html#rndis-driver"
+    echo
+    echo "(This message appears because rpi-usb-gadget is enabled.)"
+    echo
+fi
