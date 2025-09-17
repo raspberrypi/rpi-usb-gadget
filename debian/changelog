@@ -7,6 +7,13 @@ rpi-usb-gadget (1.0.4) trixie; urgency=medium
 
  -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 17 Sep 2025 16:47:15 +0100
 
+rpi-usb-gadget (1.0.3~bpo12+1) bookworm; urgency=medium
+
+  [ Paul Oberosler ]
+  * Rebuild for bookworm-backports
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 17 Sep 2025 10:52:17 +0100
+
 rpi-usb-gadget (1.0.3) trixie; urgency=medium
 
   [ Paul Oberosler ]
