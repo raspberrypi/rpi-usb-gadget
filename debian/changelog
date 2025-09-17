@@ -1,3 +1,12 @@
+rpi-usb-gadget (1.0.4) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Default to shared profile
+  * Add VPN note to README
+  * Switch from udev to motd + remove old code
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 17 Sep 2025 16:47:15 +0100
+
 rpi-usb-gadget (1.0.3) trixie; urgency=medium
 
   [ Paul Oberosler ]
