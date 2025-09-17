@@ -23,6 +23,8 @@ It’s designed for headless setups and for places where Wi-Fi isn’t available
 * **Host support:**
   Windows (with RNDIS driver), macOS, and Linux hosts.
 
+  > Make sure to have any VPNs disabled on the host, as they can interfere with the local networking!
+
 ## Features
 
 * **Plug-and-play**: Just connect a Micro USB or USB-C cable; NM profiles and the watcher handle networking.
