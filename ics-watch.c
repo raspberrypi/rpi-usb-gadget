@@ -311,6 +311,7 @@ static void maybe_switch(const char *target) {
                 last_gw_ok = 0; // <- reset; we haven't proved the GW yet
                 log_msg(TRUE, "Trying DHCP client mode (deadline in %lds)", (long)CLIENT_PROBE_WINDOW);
             } else {
+                client_deadline = 0;
                 log_msg(TRUE, "Switched to shared mode");
             }
         }
@@ -356,6 +357,7 @@ static gboolean periodic_check(gpointer user_data) {
                 log_msg(FALSE, "CLIENT failed (APIPA/no GW); back to SHARED, backoff %lds",
                         (long)BACKOFF_AFTER_FAIL);
                 backoff_until = now + BACKOFF_AFTER_FAIL;
+                client_deadline = 0;
                 maybe_switch(SHARED_ID);
             }
 
@@ -367,6 +369,7 @@ static gboolean periodic_check(gpointer user_data) {
         // We have non-APIPA and a GW configured — validate that the GW actually answers ARP.
         if (arping(gw)) {
             last_gw_ok = now;
+            client_deadline = 0;
             gchar *joined = g_strjoinv(",", (gchar **)addrs->pdata);
             log_msg(FALSE, "CLIENT OK: addrs=%s gw=%s", joined ? joined : "(…)", gw);
             g_free(joined);
@@ -389,6 +392,7 @@ static gboolean periodic_check(gpointer user_data) {
             log_msg(FALSE, "CLIENT: GW %s lost for >=%lds; back to SHARED (backoff %lds)",
                     gw, (long)GW_LOSS_GRACE, (long)BACKOFF_AFTER_FAIL);
             backoff_until = now + BACKOFF_AFTER_FAIL;
+            client_deadline = 0;
             maybe_switch(SHARED_ID);
         }
 
@@ -416,9 +420,9 @@ static gboolean periodic_check(gpointer user_data) {
 
     // No profile yet: start by trying CLIENT once (then logic above handles fallback/backoff)
     if (!is_transitioning(dev)) {
-        up(CLIENT_ID);
-        client_deadline = now_s() + CLIENT_PROBE_WINDOW;
-        last_switch = now_s();
+        if (up(SHARED_ID)) {
+            last_switch = now_s();
+        }
     } else {
         log_msg(FALSE, "Activation in progress; not reissuing up()");
     }

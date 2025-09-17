@@ -71,19 +71,19 @@ nm_ensure_client() {
         nmcli connection modify "$CLIENT_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
-            connection.autoconnect yes \
+            connection.autoconnect no \
             connection.autoconnect-priority 100 \
             ipv4.method auto \
-            ipv4.may-fail no \
+            ipv4.may-fail yes \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
             ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
             ipv6.method disabled || true
     else
         nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$CLIENT_NAME" \
-            connection.autoconnect yes \
+            connection.autoconnect no \
             connection.autoconnect-priority 100 \
             ipv4.method auto \
-            ipv4.may-fail no \
+            ipv4.may-fail yes \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
             ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
             ipv6.method disabled || true
@@ -91,19 +91,19 @@ nm_ensure_client() {
 }
 
 nm_ensure_shared() {
-    # Pi serves DHCP+NAT on 10.12.194.0/28; IPv6 disabled; do NOT autoconnect
+    # Pi serves DHCP+NAT on 10.12.194.0/28; IPv6 disabled; do autoconnect
     if nmcli -t -f NAME connection show | grep -F -q -e "^$SHARED_NAME$"; then
         nmcli connection modify "$SHARED_NAME" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
-            connection.autoconnect no \
+            connection.autoconnect yes \
             connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
             ipv6.method disabled || true
     else
         nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$SHARED_NAME" \
-            connection.autoconnect no \
+            connection.autoconnect yes \
             connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
@@ -252,8 +252,8 @@ else
         nmcli connection reload >/dev/null 2>&1 || true
 
         # Try client first; ICS-watch will flip to shared if no DHCP/gateway
-        nm_down "$SHARED_NAME"
-        nm_up   "$CLIENT_NAME"
+        nm_down "$CLIENT_NAME"
+        nm_up   "$SHARED_NAME"
 
         # start ICS watcher so it can auto-switch client/shared
         svc_enable_now
