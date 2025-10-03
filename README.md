@@ -5,7 +5,7 @@ This package turns your Raspberry Pi into a **USB Ethernet gadget** using the ke
 * **CDC-ECM** on Linux and macOS
 * **RNDIS** on Windows (use the included Raspberry Pi USB RNDIS driver for fastest onboarding)
 
-It’s designed for headless setups and for places where Wi-Fi isn’t available or allowed. With a single Micro USB or USB-C cable you get a network link that’s ideal for SSH, file copy, and remote dev (e.g. VS Code), with **very low latency**.
+It’s designed for headless setups and for places where Wi-Fi isn’t available or communication between network devices is restricted. With a single Micro USB or USB-C cable you get a network link that’s ideal for SSH, file copy, and remote dev (e.g. VS Code), with **very low latency**.
 
 ## What’s new / how it behaves
 
@@ -77,16 +77,16 @@ This narrow subnet minimizes the chance of colliding with the host’s other net
 
 ## How It Works
 
-This package enables the **USB Ethernet gadget** (`g_ether`) and configures NetworkManager to manage the gadget link:
+This package enables the **USB Ethernet gadget** (`g_ether` kernel module) and configures NetworkManager to manage the gadget link:
 
 * **Interface:** `usb0` (or set `USB_GADGET_IFACE` in the service environment)
 * **Profiles:**
 
   * **USB Gadget (client)** – DHCP client of the host (for host ICS)
-  * **USB Gadget (shared)** – NM “shared” (DHCP+NAT served by the Pi)
+  * **USB Gadget (shared)** – NetworkManager “shared” (DHCP+NAT served by the Pi)
 * **Auto-switcher:** `rpi-usb-gadget-ics.service` probes for a host ICS gateway via ARP and flips profiles accordingly.
 
-> **Note:** The current package ships **USB Ethernet only**. A serial gadget (`/dev/ttyGS0`) is **not** enabled by default.
+> **Note:** The current package ships **USB Ethernet** only.
 
 ### Accessing the Pi
 
@@ -97,7 +97,9 @@ On Windows, installing the supplied **Raspberry Pi USB RNDIS Driver** helps the 
 
 ## Installation
 
-// install via apt with apt update before
+The package will be included in a future release of Raspberry Pi OS.
+Once it is in the official apt repositories you can follow the APT instructions below to install it on existing Raspberry Pi OS (trixie based) systems.
+
 ### a) Using the APT repository (recommended for easy updates)
 
 1. Update your package list and install the package:
@@ -114,7 +116,7 @@ On Windows, installing the supplied **Raspberry Pi USB RNDIS Driver** helps the 
    sudo reboot
    ```
 
-### b) Manual installation
+### Manual installation
 
 1. Download the `.deb` package from the [releases page](https://github.com/raspberrypi/rpi-usb-gadget/releases).
 2. Install the package using:
@@ -206,9 +208,9 @@ If Windows doesn't show this adapter in Device Manager or the Control Panel, the
 
 ## Using Raspberry Pi Imager
 
-You can also configure this functionality directly within the [Raspberry Pi Imager](https://raspberrypi.com/software) tool. Simply select "USB Gadget mode" in the `Interfaces & Features` customization tab to enable it and make sure you have also configured ssh for remote access in imager.
+You can also configure this functionality directly within the [Raspberry Pi Imager](https://raspberrypi.com/software) tool (requires version 2.0 or newer). Simply select "USB Gadget mode" in the `Interfaces & Features` customization tab to enable it and make sure you have also configured ssh for remote access in imager.
 
-For command-line users, this feature can also be activated with the `--usb-ether-gadget` flag when using the rpi-imager-cli.
+For command-line users, this feature can also be activated with the `--usb-gadget` flag when using the rpi-imager-cli.
 
 ```bash
 rpi-imager-cli --usb-gadget
