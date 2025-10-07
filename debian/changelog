@@ -1,3 +1,12 @@
+rpi-usb-gadget (1.0.5) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Update README for the public release + Windows driver
+  * Fix motd repository url
+  * Update Windows driver installer configuration
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 07 Oct 2025 13:19:12 +0100
+
 rpi-usb-gadget (1.0.4) trixie; urgency=medium
 
   [ Paul Oberosler ]
