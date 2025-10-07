@@ -1,4 +1,3 @@
-# /etc/systemd/system/rpi-usb-gadget-ics.service
 [Unit]
 Description=USB gadget ICS auto-switcher (client <-> shared)
 After=NetworkManager.service
