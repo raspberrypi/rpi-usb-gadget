@@ -140,8 +140,6 @@ Simply plug your Raspberry Pi into your PC/laptop using a USB cable, and it will
 
 You can then connect to it via SSH, transfer files, or use remote development tools like VS Code.
 
-Got it—here’s a cleaned-up, drop-in README section tailored for Windows with your points baked in.
-
 ## Windows setup & troubleshooting (ICS + RNDIS)
 
 When the gadget is working on Windows, you should see a network adapter named:
