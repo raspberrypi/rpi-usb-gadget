@@ -15,6 +15,7 @@
 AppId={{F6A0C3F8-5F5E-4B86-9C15-8E7E6E6D5C9A}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
+AppVerName={#MyAppName}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppPublisher}\USB RNDIS Driver
@@ -30,7 +31,6 @@ DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64 arm64
 ArchitecturesInstallIn64BitMode=x64 arm64
 PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
 SetupLogging=yes
 ; Prevent install on too-old Windows
 MinVersion=10.0.0
