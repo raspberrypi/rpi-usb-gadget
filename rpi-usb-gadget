@@ -32,6 +32,9 @@ OVERLAY_LINE='dtoverlay=dwc2,dr_mode=peripheral'
 DNSMASQ_DIR=/etc/NetworkManager/dnsmasq-shared.d
 DNSMASQ_SNIPPET="$DNSMASQ_DIR/90-rpi-usb-gadget-lease.conf"
 
+# A list of supported devices (for informational purposes)
+SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero 2 W' 'Raspberry Pi 3 Model A+' 'Raspberry Pi 4 Model B' 'Raspberry Pi 5 Model B')"
+
 #################################
 ##### Systemd service setup #####
 #################################
@@ -188,6 +191,7 @@ nm_status() {
 #################################
 
 TURN_ON=true
+FORCE=false
 case "$1" in
     on)      TURN_ON=true ;;
     off)     TURN_ON=false ;;
@@ -216,6 +220,35 @@ case "$1" in
         ;;
 esac
 
+if [ "$2" = "-f" ] || [ "$2" = "--force" ]; then
+    FORCE=true
+fi
+
+check_supported() {
+    model=$(tr -d '\0' < /proc/device-tree/model)
+    if ! printf '%s\n' "$SUPPORTED_DEVICES" | grep -F -q -e "^${model%% *}"; then
+        printf '\033[33mWarning: Your device model is not in the list of supported devices:\033[0m\n'
+        printf '%s\n' "$SUPPORTED_DEVICES" | sed 's/^/  - /'
+        printf '\033[33mYour device model: %s\033[0m\n' "$model"
+        printf '\033[33mThe script may still work, but proceed with caution.\033[0m\n'
+        if [ "$FORCE" = false ]; then
+            while true; do
+                printf 'Do you want to continue? (y/n): '
+                read -r ans
+                case "$ans" in
+                    y|Y) return 0 ;;
+                    n|N) return 1 ;;
+                    *)   printf 'Please answer y or n.\n' ;;
+                esac
+            done
+        else
+            printf '\033[33mForce flag detected; proceeding despite unsupported device.\033[0m\n'
+        fi
+    fi
+
+    return 0
+}
+
 if [ "$TURN_ON" = false ]; then
     printf 'Turning \033[31moff\033[0m USB Gadget mode\n'
 
@@ -237,6 +270,8 @@ if [ "$TURN_ON" = false ]; then
     sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
 
 else
+    check_supported || exit 1
+
     printf 'Turning \033[32mon\033[0m USB Gadget mode\n'
     printf "g_ether\n" > "$MODS_CONF"
     # ensure overlay present once
