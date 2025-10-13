@@ -1,3 +1,10 @@
+rpi-usb-gadget (1.0.6) trixie; urgency=medium
+
+  [ Paul Oberosler ]
+  * Add device compatibility check / warning to the script
+
+ -- Paul Oberosler <paul.oberosler@raspberrypi.com>  Wed, 14 Oct 2025 09:25:10 +0100
+
 rpi-usb-gadget (1.0.5) trixie; urgency=medium
 
   [ Paul Oberosler ]
