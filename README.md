@@ -34,7 +34,7 @@ It’s designed for headless setups and for places where Wi-Fi isn’t available
 
   * Via **host ICS** (Pi is client), or
   * Via **Pi shared** (Pi serves DHCP/NAT at `10.12.194.1/28`).
-* **Wide compatibility**: Works on Raspberry Pi Zero/Zero 2 W, 3A+, 4B, 5, and similar models with USB device mode.
+* **Wide compatibility**: Works on Raspberry Pi Zero/Zero 2 W, 3A+, 4B, 5, 500, Compute Module 0/5 (CM4 requires more effort to set up)
 
 > Tip: If you attach multiple Pis to the same host, prefer **host ICS** (so each Pi gets a unique host-assigned IP), or adjust each Pi’s shared subnet (`nmcli con modify "USB Gadget (shared)" ipv4.addresses …`).
 

@@ -33,7 +33,7 @@ DNSMASQ_DIR=/etc/NetworkManager/dnsmasq-shared.d
 DNSMASQ_SNIPPET="$DNSMASQ_DIR/90-rpi-usb-gadget-lease.conf"
 
 # A list of supported devices (for informational purposes)
-SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero 2 W' 'Raspberry Pi 3 Model A+' 'Raspberry Pi 4 Model B' 'Raspberry Pi 5 Model B')"
+SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero 2 W' 'Raspberry Pi 3 Model A+' 'Raspberry Pi 4 Model B' 'Raspberry Pi 5 Model B' 'Raspberry Pi 500' 'Raspberry Pi Compute Module 0' 'Raspberry Pi Compute Module 5')"
 
 #################################
 ##### Systemd service setup #####
@@ -226,27 +226,34 @@ fi
 
 check_supported() {
     model=$(tr -d '\0' < /proc/device-tree/model)
-    if ! printf '%s\n' "$SUPPORTED_DEVICES" | grep -F -q -e "^${model%% *}"; then
-        printf '\033[33mWarning: Your device model is not in the list of supported devices:\033[0m\n'
-        printf '%s\n' "$SUPPORTED_DEVICES" | sed 's/^/  - /'
-        printf '\033[33mYour device model: %s\033[0m\n' "$model"
-        printf '\033[33mThe script may still work, but proceed with caution.\033[0m\n'
-        if [ "$FORCE" = false ]; then
-            while true; do
-                printf 'Do you want to continue? (y/n): '
-                read -r ans
-                case "$ans" in
-                    y|Y) return 0 ;;
-                    n|N) return 1 ;;
-                    *)   printf 'Please answer y or n.\n' ;;
-                esac
-            done
-        else
-            printf '\033[33mForce flag detected; proceeding despite unsupported device.\033[0m\n'
-        fi
+    base_model=${model%% Rev *}
+
+    if printf '%s\n' "$SUPPORTED_DEVICES" | awk -v m="$base_model" '
+        { if (index(m, $0) == 1) exit 0 }  # match if m starts with $0
+        END { exit 1 }
+    '; then
+        return 0
     fi
 
-    return 0
+    printf '\033[33mWarning: Your device model is not in the list of supported devices:\033[0m\n'
+    printf '%s\n' "$SUPPORTED_DEVICES" | sed 's/^/  - /'
+    printf '\033[33mYour device model: %s\033[0m\n' "$model"
+    printf '\033[33mThe script may still work, but proceed with caution.\033[0m\n'
+
+    if [ "$FORCE" = false ]; then
+        while true; do
+            printf 'Do you want to continue? (y/n): '
+            read -r ans
+            case "$ans" in
+                y|Y) return 0 ;;
+                n|N) return 1 ;;
+                *)   printf 'Please answer y or n.\n' ;;
+            esac
+        done
+    else
+        printf '\033[33mForce flag detected; proceeding despite unsupported device.\033[0m\n'
+        return 0
+    fi
 }
 
 if [ "$TURN_ON" = false ]; then
