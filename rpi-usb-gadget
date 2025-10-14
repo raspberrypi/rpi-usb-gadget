@@ -33,7 +33,7 @@ DNSMASQ_DIR=/etc/NetworkManager/dnsmasq-shared.d
 DNSMASQ_SNIPPET="$DNSMASQ_DIR/90-rpi-usb-gadget-lease.conf"
 
 # A list of supported devices (for informational purposes)
-SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero 2 W' 'Raspberry Pi 3 Model A+' 'Raspberry Pi 4 Model B' 'Raspberry Pi 5 Model B' 'Raspberry Pi 500' 'Raspberry Pi Compute Module 0' 'Raspberry Pi Compute Module 5')"
+SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero W' 'Raspberry Pi Zero 2 W' 'Raspberry Pi 3 Model A+' 'Raspberry Pi 4 Model B' 'Raspberry Pi 5 Model B' 'Raspberry Pi 500' 'Raspberry Pi Compute Module 0' 'Raspberry Pi Compute Module 5')"
 
 #################################
 ##### Systemd service setup #####
@@ -225,20 +225,23 @@ if [ "$2" = "-f" ] || [ "$2" = "--force" ]; then
 fi
 
 check_supported() {
-    model=$(tr -d '\0' < /proc/device-tree/model)
-    base_model=${model%% Rev *}
+    # Read and sanitize the model string
+    model=$(tr -d '\0' < /proc/device-tree/model | tr -d '\r')
+    
+    # Strip "Rev ..." and trailing spaces
+    base_model=$(printf '%s' "$model" \
+        | sed -E 's/[[:space:]]+Rev[[:space:]].*$//' \
+        | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
 
-    if printf '%s\n' "$SUPPORTED_DEVICES" | awk -v m="$base_model" '
-        { if (index(m, $0) == 1) exit 0 }  # match if m starts with $0
-        END { exit 1 }
-    '; then
+    # Check if the cleaned base model is exactly in the list or matches a prefix
+    if printf '%s\n' "$SUPPORTED_DEVICES" | grep -Fxq "$base_model"; then
         return 0
     fi
 
     printf '\033[33mWarning: Your device model is not in the list of supported devices:\033[0m\n'
     printf '%s\n' "$SUPPORTED_DEVICES" | sed 's/^/  - /'
-    printf '\033[33mYour device model: %s\033[0m\n' "$model"
-    printf '\033[33mThe script may still work, but proceed with caution.\033[0m\n'
+    printf '\033[33mYour device model (raw): %s\033[0m\n' "$model"
+    printf '\033[33mDetected model (cleaned): %s\033[0m\n' "$base_model"
 
     if [ "$FORCE" = false ]; then
         while true; do
