@@ -296,6 +296,9 @@ else
         nm_ensure_shared
         nmcli connection reload >/dev/null 2>&1 || true
 
+        # Make sure NetworkManager actually manages the gadget iface
+        nmcli device set "$NM_IFACE" managed yes >/dev/null 2>&1 || true
+
         # Try client first; ICS-watch will flip to shared if no DHCP/gateway
         nm_down "$CLIENT_NAME"
         nm_up   "$SHARED_NAME"

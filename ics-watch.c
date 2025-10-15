@@ -329,12 +329,26 @@ static gboolean periodic_check(gpointer user_data) {
     if (!dev) {
         log_msg(FALSE, "No device %s", IFACE);
         return G_SOURCE_CONTINUE;
+    }
+
+    const char *name = get_active_con_id(dev);
+
+    // No profile yet: start by trying SHARED once (then logic below handles fallback/backoff)
+    if (!name || *name == '\0') {
+        if (!is_transitioning(dev)) {
+            if (up(SHARED_ID)) {
+                last_switch = now_s();
+                log_msg(FALSE, "No active profile; bringing up SHARED");
+            }
+        } else {
+            log_msg(FALSE, "Activation in progress; not reissuing up()");
+        }
+        return G_SOURCE_CONTINUE;
     } else if (!carrier_up(dev)) {
         log_msg(FALSE, "Link down");
         return G_SOURCE_CONTINUE;
     }
 
-    const char *name = get_active_con_id(dev);
     GPtrArray *addrs = NULL;
     const char *gw = NULL;
     ip4_config(dev, &addrs, &gw);
@@ -416,15 +430,6 @@ static gboolean periodic_check(gpointer user_data) {
 
         g_ptr_array_free(addrs, TRUE);
         return G_SOURCE_CONTINUE;
-    }
-
-    // No profile yet: start by trying CLIENT once (then logic above handles fallback/backoff)
-    if (!is_transitioning(dev)) {
-        if (up(SHARED_ID)) {
-            last_switch = now_s();
-        }
-    } else {
-        log_msg(FALSE, "Activation in progress; not reissuing up()");
     }
 
     g_ptr_array_free(addrs, TRUE);
