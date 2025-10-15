@@ -208,11 +208,38 @@ If Windows doesn't show this adapter in Device Manager or the Control Panel, the
 
 You can also configure this functionality directly within the [Raspberry Pi Imager](https://raspberrypi.com/software) tool (requires version 2.0 or newer). Simply select "USB Gadget mode" in the `Interfaces & Features` customization tab to enable it and make sure you have also configured ssh for remote access in imager.
 
+> **Note:** Imager **2.0 is currently in beta** and requires enabling a **custom repository** to show this option. **Therefore, we recommend waiting for a stable release** before trying this out.
+
 For command-line users, this feature can also be activated with the `--usb-gadget` flag when using the rpi-imager-cli.
 
 ```bash
 rpi-imager-cli --usb-gadget
 ```
+
+> **Image availability:** You’ll need an **RPi OS image with `rpi-usb-gadget` preinstalled**. This will be included in the next image release of Raspberry Pi OS.
+
+### Using Cloud-Init
+
+If you're working with **fresh Raspberry Pi OS Trixie images**, USB Gadget Mode can also be enabled **via Cloud-Init**, without using Raspberry Pi Imager.
+
+> ⚠ **Note:** This requires the **next Raspberry Pi OS image release** with `cloud-init` and `rpi-usb-gadget` preinstalled in the base image. Older images will **not enable gadget mode correctly**, even if the YAML syntax is valid.
+
+To enable gadget mode through Cloud-Init:
+
+1. Mount the **`boot`** partition of the SD card.
+2. Edit the **`user-data`** file and append:
+
+```yaml
+rpi:
+  enable_usb_gadget: true
+enable_ssh: true        # Optional but recommended for headless access
+```
+
+3. *(Optional but strongly recommended)* — In the same file, define a user and SSH key so you can log in immediately over USB without needing peripherals.
+
+On **first boot**, Cloud-Init will apply the configuration and switch the USB port into gadget mode automatically — no need to run any commands or enable features manually.
+
+> 💡 This method is ideal for **automated provisioning**, scripting, or preparing **multiple SD cards / fleet setups** without using the Imager UI.
 
 ## Contributions
 
