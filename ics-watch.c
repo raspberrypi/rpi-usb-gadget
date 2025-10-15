@@ -336,9 +336,9 @@ static gboolean periodic_check(gpointer user_data) {
     // No profile yet: start by trying SHARED once (then logic below handles fallback/backoff)
     if (!name || *name == '\0') {
         if (!is_transitioning(dev)) {
+            log_msg(FALSE, "No active profile; bringing up SHARED");
             if (up(SHARED_ID)) {
                 last_switch = now_s();
-                log_msg(FALSE, "No active profile; bringing up SHARED");
             }
         } else {
             log_msg(FALSE, "Activation in progress; not reissuing up()");
