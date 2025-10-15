@@ -68,20 +68,28 @@ have_nmcli() { command -v nmcli >/dev/null 2>&1; }
 nm_down() { nmcli -w "$NM_WAIT_DOWN" con down "$1" >/dev/null 2>&1 || true; }
 nm_up()   { nmcli -w "$NM_WAIT_UP"   con up   "$1" >/dev/null 2>&1 || true; }
 
+# Return the first UUID whose connection.id == $1
+nm_first_uuid_by_name() {
+    nmcli -t -f NAME,UUID connection show 2>/dev/null \
+      | awk -F: -v n="$1" '$1==n { print $2; exit }'
+}
+
+# Delete ALL connections with connection.id == $1
+nm_delete_all_by_name() {
+    nmcli -t -f NAME,UUID connection show 2>/dev/null \
+      | awk -F: -v n="$1" '$1==n { print $2 }' \
+      | while IFS= read -r u; do
+            [ -n "$u" ] && nmcli connection delete uuid "$u" >/dev/null 2>&1 || true
+        done
+}
+
 nm_ensure_client() {
+    # Ensure exactly one "client" profile with desired settings
+    uuid=$(nm_first_uuid_by_name "$CLIENT_NAME")
+
     # DHCP client (for ICS); IPv6 disabled; short timeout; prefer routes via DHCP
-    if nmcli -t -f NAME connection show | grep -F -q -e "^$CLIENT_NAME$"; then
-        nmcli connection modify "$CLIENT_NAME" \
-            connection.type ethernet \
-            connection.interface-name "$NM_IFACE" \
-            connection.autoconnect no \
-            connection.autoconnect-priority 100 \
-            ipv4.method auto \
-            ipv4.may-fail yes \
-            ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
-            ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method disabled || true
-    else
+    if [ -z "$uuid" ]; then
+        nm_delete_all_by_name "$CLIENT_NAME"  # paranoia cleanup
         nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$CLIENT_NAME" \
             connection.autoconnect no \
             connection.autoconnect-priority 100 \
@@ -89,36 +97,63 @@ nm_ensure_client() {
             ipv4.may-fail yes \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
             ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method disabled || true
+            ipv6.method disabled >/dev/null 2>&1 || true
+    else
+        # modify by UUID so we don't hit the "multiple connections with same name" warning
+        nmcli connection modify uuid "$uuid" \
+            connection.type ethernet \
+            connection.interface-name "$NM_IFACE" \
+            connection.autoconnect no \
+            connection.autoconnect-priority 100 \
+            ipv4.method auto \
+            ipv4.may-fail yes \
+            ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
+            ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
+            ipv6.method disabled >/dev/null 2>&1 || true
+
+        # remove any other duplicates that might exist
+        nmcli -t -f NAME,UUID connection show 2>/dev/null \
+          | awk -F: -v n="$CLIENT_NAME" '$1==n { print $2 }' \
+          | tail -n +2 | while IFS= read -r du; do
+                [ -n "$du" ] && nmcli connection delete uuid "$du" >/dev/null 2>&1 || true
+            done
     fi
 }
 
 nm_ensure_shared() {
+    uuid=$(nm_first_uuid_by_name "$SHARED_NAME")
+
     # Pi serves DHCP+NAT on 10.12.194.0/28; IPv6 disabled; do autoconnect
-    if nmcli -t -f NAME connection show | grep -F -q -e "^$SHARED_NAME$"; then
-        nmcli connection modify "$SHARED_NAME" \
+    if [ -z "$uuid" ]; then
+        nm_delete_all_by_name "$SHARED_NAME"
+        nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$SHARED_NAME" \
+            connection.autoconnect yes \
+            connection.autoconnect-priority 10 \
+            ipv4.method shared \
+            ipv4.addresses "$SHARED_ADDR" \
+            ipv6.method disabled >/dev/null 2>&1 || true
+    else
+        nmcli connection modify uuid "$uuid" \
             connection.type ethernet \
             connection.interface-name "$NM_IFACE" \
             connection.autoconnect yes \
             connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method disabled || true
-    else
-        nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$SHARED_NAME" \
-            connection.autoconnect yes \
-            connection.autoconnect-priority 10 \
-            ipv4.method shared \
-            ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method disabled || true
+            ipv6.method disabled >/dev/null 2>&1 || true
+
+        nmcli -t -f NAME,UUID connection show 2>/dev/null \
+          | awk -F: -v n="$SHARED_NAME" '$1==n { print $2 }' \
+          | tail -n +2 | while IFS= read -r du; do
+                [ -n "$du" ] && nmcli connection delete uuid "$du" >/dev/null 2>&1 || true
+            done
     fi
 }
 
 nm_remove_profiles() {
-    nmcli -t -f NAME connection show | grep -Fxq "$CLIENT_NAME" && \
-        nmcli connection delete "$CLIENT_NAME" >/dev/null 2>&1 || true
-    nmcli -t -f NAME connection show | grep -Fxq "$SHARED_NAME" && \
-        nmcli connection delete "$SHARED_NAME" >/dev/null 2>&1 || true
+    nm_delete_all_by_name "$CLIENT_NAME"
+    nm_delete_all_by_name "$SHARED_NAME"
+    nmcli connection reload >/dev/null 2>&1 || true
 }
 
 nm_dnsmasq_setup() {
@@ -270,7 +305,6 @@ if [ "$TURN_ON" = false ]; then
         nm_down "$SHARED_NAME"
         nm_down "$CLIENT_NAME"
         nm_remove_profiles
-        nmcli connection reload >/dev/null 2>&1 || true
         nm_dnsmasq_remove
     fi
 
