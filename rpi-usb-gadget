@@ -41,6 +41,14 @@ SUPPORTED_DEVICES="$(printf '%s\n' 'Raspberry Pi Zero' 'Raspberry Pi Zero W' 'Ra
 
 have_systemctl() { command -v systemctl >/dev/null 2>&1; }
 
+# /sys/class/udc is populated when a UDC driver (dwc2 in peripheral mode) is active
+overlay_active() { [ -n "$(ls /sys/class/udc/ 2>/dev/null)" ]; }
+
+cfg_has_overlay() {
+    grep -q "^${OVERLAY_LINE}\$" "$CFG_FW" 2>/dev/null || \
+    grep -q "^${OVERLAY_LINE}\$" "$CFG_LEGACY" 2>/dev/null
+}
+
 svc_enable_now() {
     have_systemctl || return 0
     systemctl daemon-reload || true
@@ -318,10 +326,17 @@ else
 
     printf 'Turning \033[32mon\033[0m USB Gadget mode\n'
     printf "g_ether\n" > "$MODS_CONF"
-    # ensure overlay present once
-    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
-    sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
-    printf '%s\n' "$OVERLAY_LINE" >> "$CFG_FW" 2>/dev/null || printf '%s\n' "$OVERLAY_LINE" >> "$CFG_LEGACY"
+    modprobe g_ether 2>/dev/null || true
+    NEED_REBOOT=false
+    if ! cfg_has_overlay; then
+        # ensure overlay present once
+        sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
+        sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
+        printf '%s\n' "$OVERLAY_LINE" >> "$CFG_FW" 2>/dev/null || printf '%s\n' "$OVERLAY_LINE" >> "$CFG_LEGACY"
+        if ! overlay_active; then
+            NEED_REBOOT=true
+        fi
+    fi
 
     # NetworkManager: dnsmasq + client profile + shared profile
     if have_nmcli; then
@@ -344,4 +359,4 @@ else
     fi
 fi
 
-printf "Reboot to apply changes\n"
+[ "${NEED_REBOOT:-false}" = true ] && printf "Reboot to apply changes\n" || true
