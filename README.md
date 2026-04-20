@@ -195,6 +195,10 @@ If Windows doesn't show this adapter in Device Manager or the Control Panel, the
      ```
    * Or reboot the Pi after you’ve corrected ICS on Windows.
 
+5. **Fix mDNS problems**
+
+   * If you run ```ping <hostname>.local``` and get: ```Ping request could not find host <hostname>.local. Please check the name and try again.``` then mDNS is not working on Windows. Try installing [Bonjour](https://support.apple.com/en-us/106380) then restart your computer and try to re-connect. 
+     
 ### Useful checks
 
 * On Windows, run `ipconfig`. The gadget NIC should be **192.168.137.1** when ICS is on.
