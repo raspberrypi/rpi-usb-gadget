@@ -3,7 +3,7 @@
 ; ============================
 
 #define MyAppName        "Raspberry Pi USB RNDIS Driver"
-#define MyAppVersion     "1.0.0"
+#define MyAppVersion     "1.0.6"
 #define MyAppPublisher   "Raspberry Pi Ltd"
 #define MyAppURL         "https://github.com/raspberrypi/rpi-usb-gadget"
 #define MyAppExe         "pnputil.exe"
