@@ -97,7 +97,7 @@ nm_ensure_client() {
             ipv4.may-fail yes \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
             ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method disabled >/dev/null 2>&1 || true
+            ipv6.method link-local >/dev/null 2>&1 || true
     else
         # modify by UUID so we don't hit the "multiple connections with same name" warning
         nmcli connection modify uuid "$uuid" \
@@ -109,7 +109,7 @@ nm_ensure_client() {
             ipv4.may-fail yes \
             ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
             ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method disabled >/dev/null 2>&1 || true
+            ipv6.method link-local >/dev/null 2>&1 || true
 
         # remove any other duplicates that might exist
         nmcli -t -f NAME,UUID connection show 2>/dev/null \
@@ -131,7 +131,7 @@ nm_ensure_shared() {
             connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method disabled >/dev/null 2>&1 || true
+            ipv6.method link-local >/dev/null 2>&1 || true
     else
         nmcli connection modify uuid "$uuid" \
             connection.type ethernet \
@@ -140,7 +140,7 @@ nm_ensure_shared() {
             connection.autoconnect-priority 10 \
             ipv4.method shared \
             ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method disabled >/dev/null 2>&1 || true
+            ipv6.method link-local >/dev/null 2>&1 || true
 
         nmcli -t -f NAME,UUID connection show 2>/dev/null \
           | awk -F: -v n="$SHARED_NAME" '$1==n { print $2 }' \
