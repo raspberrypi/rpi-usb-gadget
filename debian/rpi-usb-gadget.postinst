@@ -14,6 +14,30 @@ done
 SERIAL=$(awk '/^Serial/{print $3}' /proc/cpuinfo)
 sed -i "s/<serial>/$SERIAL/g" /usr/lib/modprobe.d/g_ether.conf
 
+# Stamp stable, per-board MAC addresses into g_ether options.
+# Without host_addr/dev_addr, u_ether picks a *random* MAC pair on every
+# module load (every boot / gadget re-enumeration). On Linux hosts, which
+# name USB-Ethernet interfaces from the MAC (enx<mac>) and cache NM/udev
+# state per-device, a new MAC each boot makes the host treat the gadget as
+# a brand-new device every time, causing inconsistent/delayed DHCP.
+# Derive two distinct, valid locally-administered unicast MACs from the
+# board serial so they stay constant across reboots but differ per board.
+mac_from_hash() {
+    # $1 = first byte (hex, must be locally-administered+unicast: 02/06/0A/0E...)
+    # $2 = hash input string
+    h=$(printf '%s' "$2" | md5sum | cut -c1-10)
+    printf '%s:%s:%s:%s:%s:%s' "$1" \
+        "$(printf '%s' "$h" | cut -c1-2)" \
+        "$(printf '%s' "$h" | cut -c3-4)" \
+        "$(printf '%s' "$h" | cut -c5-6)" \
+        "$(printf '%s' "$h" | cut -c7-8)" \
+        "$(printf '%s' "$h" | cut -c9-10)"
+}
+HOST_ADDR=$(mac_from_hash 02 "${SERIAL}-host")
+DEV_ADDR=$(mac_from_hash 06 "${SERIAL}-dev")
+sed -i "s/<host_addr>/$HOST_ADDR/g" /usr/lib/modprobe.d/g_ether.conf
+sed -i "s/<dev_addr>/$DEV_ADDR/g" /usr/lib/modprobe.d/g_ether.conf
+
 # Ensure our helper scripts are executable (in case VCS lost +x)
 chmod 0755 /usr/bin/rpi-usb-gadget 2>/dev/null || true
 chmod 0755 /etc/update-motd.d/99-rpi-usb-gadget 2>/dev/null || true

@@ -19,7 +19,11 @@ SHARED_NAME='USB Gadget (shared)'
 SERVICE="rpi-usb-gadget-ics.service"
 
 SHARED_ADDR="10.12.194.1/28"
-CLIENT_DHCP_TIMEOUT=6
+# arping only proves the host's ICS gateway IP is up, not that its DHCP
+# server (e.g. a just-spawned dnsmasq behind NM "shared") is ready to
+# answer yet. A too-short timeout here loses that race and bounces back
+# to SHARED, retrying every ~30s until the timing happens to line up.
+CLIENT_DHCP_TIMEOUT=15
 CLIENT_ROUTE_METRIC=100
 NM_WAIT_DOWN=5
 NM_WAIT_UP=10
