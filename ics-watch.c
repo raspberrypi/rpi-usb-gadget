@@ -26,7 +26,7 @@ static const size_t ICS_GWS_N = 3;
 
 // Tunables (seconds/ms)
 static const guint  LOOP_MS             = 4000; // main loop tick
-static const gint64 CLIENT_PROBE_WINDOW = 15;   // seconds we allow DHCP to succeed after switching to CLIENT
+static const gint64 CLIENT_PROBE_WINDOW = 25;   // seconds we allow DHCP to succeed after switching to CLIENT (must exceed NM's ipv4.dhcp-timeout)
 static const gint64 BACKOFF_AFTER_FAIL  = 15;   // seconds to wait in SHARED after a failed CLIENT try
 static const gint64 MINDWELL            = 2;    // anti-flap
 static const gint64 GW_LOSS_GRACE       = 10;   // how long to tolerate a dead gateway in CLIENT
@@ -56,6 +56,7 @@ static void log_msg(gboolean force, const char *fmt, ...) {
     g_print("[ics-watch | %s] ", ts);
     g_vprintf(fmt, ap);
     g_print("\n");
+    fflush(stdout);
     g_free(ts);
     g_date_time_unref(dt);
     va_end(ap);
@@ -282,6 +283,195 @@ static gboolean ics_gw_is_reachable(void) {
     return FALSE;
 }
 
+// --- USB gadget self-heal (dwc2 endpoint lockup) ----------------------------
+//
+// Confirmed 2026-08-19: on this hardware, dwc2 peripheral-mode OUT-endpoint
+// lockups (host retries a CDC-ECM DHCP transaction, host's usbnet 5s TX
+// watchdog force-unlinks the URB, dwc2 then fails to cleanly disable the
+// endpoint) leave the link permanently dead - carrier never comes back, and
+// even physically unplugging/replugging the USB cable does not recover it
+// (confirmed across a 20+ minute window with no self-recovery). The kernel
+// logs a distinctive pair of messages when this happens. `rmmod g_ether &&
+// modprobe g_ether` was confirmed to fully recover the link within seconds,
+// with a real DHCP lease obtained on the very next plug event - cheaper than
+// asking the user to power-cycle the Pi.
+//
+// Recovery mechanism note (2026-08-19): a lighter alternative - unbinding
+// and rebinding just the dwc2 platform device via sysfs
+// (/sys/bus/platform/drivers/dwc2/{unbind,bind}), instead of a full module
+// rmmod/modprobe - was tried and worked in a single manual test, but caused
+// the Pi to bootloop once deployed and triggered repeatedly (every ~10-15s,
+// after CARRIER_STUCK_TIMEOUT was lowered below). Root cause not confirmed
+// (persistent journald logging wasn't enabled yet, so the crashing boot's
+// logs were lost), but the correlation was clear enough to revert. Stick
+// with rmmod/modprobe, which was validated across many real repro cycles
+// this session without incident - do not switch back to unbind/bind
+// without first confirming (with persistent logging on) that it tolerates
+// repeated rapid firing, not just a single isolated test.
+
+static const gint64 RECOVERY_COOLDOWN_S = 60; // min gap between recovery attempts
+static const char  *GADGET_MODULE       = "g_ether";
+static const char  *DWC2_WEDGE_MARKERS[] = {
+    "dwc2_hsotg_ep_stop_xfr: timeout",
+    "dwc2_hsotg_txfifo_flush: timeout",
+};
+static const size_t DWC2_WEDGE_MARKERS_N = 2;
+
+static gint64 last_recovery_at = 0; // 0 = never attempted
+
+// Fallback trigger for wedges that never log a kmsg marker on the Pi side
+// at all - confirmed reproducible 2026-08-19: host logs its own repeated
+// usbnet TX watchdog ("NETDEV WATCHDOG: transmit queue 0 timed out") for
+// 100+ seconds straight while the Pi's dwc2 driver stays completely silent
+// (no dwc2_hsotg_ep_stop_xfr/txfifo_flush messages at all). From the Pi's
+// side this is indistinguishable from a healthy idle link by log-watching
+// alone, so instead we watch the interface's rx_packets counter: if
+// carrier has been up for CARRIER_STUCK_TIMEOUT seconds and not a single
+// packet has actually been *received* from the host in that whole window,
+// the link is almost certainly wedged (a working link would have a
+// DHCPDISCOVER/ARP/ND packet arrive well before then). Deliberately RX
+// only, not RX+TX: our own periodic ics_gw_is_reachable() arping() calls
+// transmit from this interface every ~4s in SHARED mode, which would
+// otherwise mask a stuck link with self-generated TX "activity" (confirmed
+// 2026-08-19 - tx_packets was 122 vs rx_packets 1 on a link stuck for 100+s).
+// 10s: several LOOP_MS poll cycles of confirmation, but short enough that
+// pwnagotchi (which needs a good USB link up promptly to enter Manual mode)
+// isn't stuck waiting behind a wedged link for too long. Below ~8s this
+// starts risking false positives against legitimately-slow hosts (Windows
+// in particular can take a few seconds to recognize the adapter and start
+// DHCP) - 10s was chosen as the fastest value still comfortably above that.
+static const gint64 CARRIER_STUCK_TIMEOUT = 10;
+
+// 0 = not tracking (carrier down); >0 = carrier-up timestamp, still
+// watching for first activity; -1 = activity already seen this carrier-up
+// session, watchdog satisfied until the next carrier down->up transition.
+static gint64  carrier_up_since       = 0;
+static guint64 carrier_rx_baseline    = 0;
+
+static guint64 iface_rx_packets(void) {
+    gchar *path = g_strdup_printf("/sys/class/net/%s/statistics/rx_packets", IFACE);
+    gchar *contents = NULL;
+    guint64 val = 0;
+    if (g_file_get_contents(path, &contents, NULL, NULL)) {
+        val = g_ascii_strtoull(contents, NULL, 10);
+        g_free(contents);
+    }
+    g_free(path);
+    return val;
+}
+
+static gboolean recover_usb_gadget(void) {
+    gint64 t = now_s();
+    if (last_recovery_at != 0 && t - last_recovery_at < RECOVERY_COOLDOWN_S) {
+        log_msg(FALSE, "recover_usb_gadget(): cooldown active, skipping");
+        return FALSE;
+    }
+    last_recovery_at = t;
+
+    log_msg(TRUE, "dwc2 wedge detected; reloading %s to recover", GADGET_MODULE);
+
+    // rmmod will itself log further dwc2_hsotg_ep_stop_xfr/txfifo_flush
+    // timeouts while tearing down the already-wedged endpoint - that's
+    // expected and harmless, the driver proceeds past them and unbinds
+    // anyway (confirmed 2026-08-19).
+    gchar *rmmod_argv[]    = { "/usr/sbin/rmmod", (gchar *)GADGET_MODULE, NULL };
+    gchar *modprobe_argv[] = { "/usr/sbin/modprobe", (gchar *)GADGET_MODULE, NULL };
+    gint status = 0;
+    GError *err = NULL;
+
+    if (!g_spawn_sync(NULL, rmmod_argv, NULL,
+                       G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+                       NULL, NULL, NULL, NULL, &status, &err)) {
+        log_msg(TRUE, "recover_usb_gadget(): rmmod spawn failed: %s", err ? err->message : "unknown");
+        g_clear_error(&err);
+        return FALSE;
+    }
+
+    g_usleep(500 * 1000); // let the unbind settle before rebinding
+
+    if (!g_spawn_sync(NULL, modprobe_argv, NULL,
+                       G_SPAWN_STDOUT_TO_DEV_NULL | G_SPAWN_STDERR_TO_DEV_NULL,
+                       NULL, NULL, NULL, NULL, &status, &err)) {
+        log_msg(TRUE, "recover_usb_gadget(): modprobe spawn failed: %s", err ? err->message : "unknown");
+        g_clear_error(&err);
+        return FALSE;
+    }
+
+    // Force a clean restart of the CLIENT/SHARED state machine once carrier
+    // comes back; periodic_check() will bring SHARED up from scratch.
+    client_deadline = 0;
+    backoff_until   = 0;
+
+    log_msg(TRUE, "recover_usb_gadget(): %s reloaded", GADGET_MODULE);
+    return TRUE;
+}
+
+static gboolean on_kmsg_line(GIOChannel *chan, GIOCondition cond, gpointer data) {
+    (void)data;
+    if (cond & (G_IO_HUP | G_IO_ERR))
+        return G_SOURCE_REMOVE;
+
+    gchar *line = NULL;
+    gsize len = 0;
+    GError *err = NULL;
+
+    while (g_io_channel_read_line(chan, &line, &len, NULL, &err) == G_IO_STATUS_NORMAL) {
+        for (size_t i = 0; i < DWC2_WEDGE_MARKERS_N; i++) {
+            if (strstr(line, DWC2_WEDGE_MARKERS[i])) {
+                log_msg(TRUE, "kmsg: matched wedge marker: %s", g_strchomp(line));
+                NMDevice *dev = get_device();
+                // Only recover if the link is actually down - avoid
+                // disrupting an already-healthy connection (e.g. a marker
+                // logged by rmmod's own teardown during a prior recovery).
+                if (!dev || !carrier_up(dev)) {
+                    recover_usb_gadget();
+                } else {
+                    log_msg(TRUE, "kmsg: wedge marker seen but carrier is up; not reloading");
+                }
+                break;
+            }
+        }
+        g_free(line);
+        line = NULL;
+    }
+    if (err) g_clear_error(&err);
+    return G_SOURCE_CONTINUE;
+}
+
+static void start_kmsg_watch(void) {
+    // journalctl -kf: follow the kernel ring buffer. Avoids needing raw
+    // /dev/kmsg access beyond what the service already has as root.
+    gchar *argv[] = { "/usr/bin/journalctl", "-kf", "-o", "cat", "--no-pager", NULL };
+    GError *err = NULL;
+    GPid pid = 0;
+    gint out_fd = -1;
+
+    gboolean ok = g_spawn_async_with_pipes(
+        NULL, argv, NULL,
+        G_SPAWN_DO_NOT_REAP_CHILD,
+        NULL, NULL, &pid, NULL, &out_fd, NULL, &err);
+
+    if (!ok) {
+        log_msg(TRUE, "start_kmsg_watch(): failed to spawn journalctl -kf: %s",
+                err ? err->message : "unknown");
+        g_clear_error(&err);
+        return;
+    }
+
+    GIOChannel *chan = g_io_channel_unix_new(out_fd);
+    // Must be non-blocking: g_io_channel_read_line() only returns
+    // G_IO_STATUS_AGAIN (letting the main loop continue) on a non-blocking
+    // channel. On a blocking channel it instead performs a blocking read()
+    // once the currently-buffered data is drained, freezing the entire
+    // single-threaded main loop until journalctl produces another line.
+    g_io_channel_set_flags(chan, G_IO_FLAG_NONBLOCK, NULL);
+    g_io_channel_set_close_on_unref(chan, TRUE);
+    g_io_add_watch(chan, G_IO_IN | G_IO_HUP | G_IO_ERR, on_kmsg_line, NULL);
+    g_io_channel_unref(chan);
+
+    log_msg(TRUE, "kmsg watch started (pid %d)", (int)pid);
+}
+
 static void maybe_switch(const char *target) {
     NMDevice *dev = get_device();
     if (!dev) {
@@ -345,8 +535,30 @@ static gboolean periodic_check(gpointer user_data) {
         }
         return G_SOURCE_CONTINUE;
     } else if (!carrier_up(dev)) {
+        carrier_up_since = 0; // re-arm the stuck-link watchdog for next carrier-up
         log_msg(FALSE, "Link down");
         return G_SOURCE_CONTINUE;
+    }
+
+    if (carrier_up_since == 0) {
+        carrier_up_since = now_s();
+        carrier_rx_baseline = iface_rx_packets();
+    } else if (carrier_up_since > 0) {
+        if (iface_rx_packets() != carrier_rx_baseline) {
+            // A packet has actually arrived from the host since carrier
+            // came up; link is alive. Stop watching until the next carrier
+            // down->up transition, so a later idle period on an
+            // already-working link can't trip this as a false positive.
+            carrier_up_since = -1;
+        } else {
+            gint64 t = now_s();
+            if (t - carrier_up_since >= CARRIER_STUCK_TIMEOUT) {
+                log_msg(TRUE, "Carrier up %llds with zero packets received from host; link looks stuck",
+                        (long long)(t - carrier_up_since));
+                recover_usb_gadget();
+                carrier_up_since = 0;
+            }
+        }
     }
 
     GPtrArray *addrs = NULL;
@@ -467,6 +679,7 @@ int main(int argc, char **argv) {
 
     g_loop = g_main_loop_new(NULL, FALSE);
     g_timeout_add(LOOP_MS, periodic_check, NULL);
+    start_kmsg_watch();
 
     // SIGINT
     struct sigaction sa;
