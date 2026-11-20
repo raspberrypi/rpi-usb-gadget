@@ -1,3 +1,25 @@
+rpi-usb-gadget (1.0.7) trixie; urgency=medium
+
+  [ Jeroen Oudshoorn ]
+  * ics-watch: self-heal dwc2 USB gadget endpoint lockups. Watch for the
+    kernel's dwc2 ep_stop_xfr/txfifo_flush timeout messages (with an
+    rx_packets-based fallback watchdog for wedges that log nothing) and
+    reload g_ether automatically, recovering cold-boot connects that
+    previously stayed dead until a manual power cycle.
+  * Pin per-board gadget MAC addresses derived from the CPU serial so Linux
+    hosts see a stable device across reboots, and widen the CLIENT-mode DHCP
+    timeout/probe window so it no longer loses the DHCP-server readiness race.
+
+  [ Paul Oberosler ]
+  * Improve supported device matching.
+  * Ensure the gadget interface stays managed by NetworkManager and fix
+    pullup of the default profile when the carrier is down.
+  * Prune duplicate NetworkManager profiles before add/modify.
+  * Fix log timing.
+  * README: update Imager availability and add a cloud-init section.
+
+ -- Jeroen Oudshoorn <oudshoorn.jeroen@gmail.com>  Fri, 28 Aug 2026 14:04:05 +0200
+
 rpi-usb-gadget (1.0.6) trixie; urgency=medium
 
   [ Paul Oberosler ]
