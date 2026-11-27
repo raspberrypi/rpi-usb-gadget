@@ -17,6 +17,16 @@ NM_IFACE="${USB_GADGET_IFACE:-usb0}"
 CLIENT_NAME='USB Gadget (client)'
 SHARED_NAME='USB Gadget (shared)'
 SERVICE="rpi-usb-gadget-ics.service"
+GADGET_SERVICE="rpi-usb-gadget.service"
+
+# Composite gadget: one function per host family, each with its own netdev.
+# NM_IFACE is a bridge over both, so the Pi keeps a single interface.
+GADGET_DIR=/sys/kernel/config/usb_gadget/rpi-usb-gadget
+RNDIS_PORT=usbrndis0
+ECM_PORT=usbecm0
+RNDIS_PORT_NAME='USB Gadget (RNDIS port)'
+ECM_PORT_NAME='USB Gadget (ECM port)'
+UDC_WAIT=10
 
 SHARED_ADDR="10.12.194.1/28"
 CLIENT_DHCP_TIMEOUT=6
@@ -81,6 +91,99 @@ svc_disable_now() {
     systemctl disable --now "$SERVICE" 2>/dev/null || true
 }
 
+##########################
+##### Gadget (configfs) ##
+##########################
+
+first_udc() { set -- /sys/class/udc/*; [ -e "$1" ] && basename "$1"; }
+
+gadget_down() {
+    g="$GADGET_DIR"
+    [ -d "$g" ] || return 0
+    printf '\n' > "$g/UDC" 2>/dev/null || true
+    rm -f "$g/os_desc/c.1" "$g/configs/c.1/rndis.usb0" "$g/configs/c.2/ecm.usb0"
+    rmdir "$g/configs/c.1/strings/0x409" "$g/configs/c.2/strings/0x409" \
+          "$g/configs/c.1" "$g/configs/c.2" \
+          "$g/functions/rndis.usb0" "$g/functions/ecm.usb0" \
+          "$g/strings/0x409" "$g" 2>/dev/null || true
+}
+
+gadget_up() {
+    g="$GADGET_DIR"
+
+    # A g_ether left over from an older package version holds the UDC
+    modprobe -r g_ether 2>/dev/null || true
+    modprobe libcomposite 2>/dev/null || true
+    [ -d /sys/kernel/config/usb_gadget ] || \
+        mount -t configfs none /sys/kernel/config 2>/dev/null || true
+
+    # dwc2 may still be probing this early in boot
+    n=0
+    until udc=$(first_udc); do
+        n=$((n + 1))
+        if [ "$n" -gt "$UDC_WAIT" ]; then
+            printf 'No USB device controller found; is the dwc2 overlay active?\n' >&2
+            return 1
+        fi
+        sleep 1
+    done
+
+    gadget_down
+    mkdir -p "$g/strings/0x409" "$g/functions/rndis.usb0" "$g/functions/ecm.usb0" \
+             "$g/configs/c.1/strings/0x409" "$g/configs/c.2/strings/0x409" || return 1
+
+    serial=$(awk '/^Serial/{print $3; exit}' /proc/cpuinfo)
+
+    # bcdDevice is 0x0200 because Windows caches "no OS descriptors" per
+    # VID/PID/revision, and g_ether shipped as 0x0100.
+    printf '0x2E8A\n' > "$g/idVendor"
+    printf '0x0013\n' > "$g/idProduct"
+    printf '0x0200\n' > "$g/bcdDevice"
+    printf '0x0200\n' > "$g/bcdUSB"
+    printf '0xEF\n'   > "$g/bDeviceClass"
+    printf '0x02\n'   > "$g/bDeviceSubClass"
+    printf '0x01\n'   > "$g/bDeviceProtocol"
+    printf 'Raspberry Pi Ltd.\n'       > "$g/strings/0x409/manufacturer"
+    printf 'Raspberry Pi USB Gadget\n' > "$g/strings/0x409/product"
+    printf '%s\n' "$serial"            > "$g/strings/0x409/serialnumber"
+
+    printf 'usbrndis%%d\n' > "$g/functions/rndis.usb0/ifname"
+    printf 'usbecm%%d\n'   > "$g/functions/ecm.usb0/ifname"
+
+    # Microsoft OS descriptors: Windows binds its in-box RNDIS 6 driver
+    # with no INF. The RNDIS interface class is left alone on purpose;
+    # Linux hosts skip a leading RNDIS configuration only for that class.
+    printf '1\n'       > "$g/os_desc/use"
+    printf '0xcd\n'    > "$g/os_desc/b_vendor_code"
+    printf 'MSFT100\n' > "$g/os_desc/qw_sign"
+    printf 'RNDIS\n'   > "$g/functions/rndis.usb0/os_desc/interface.rndis/compatible_id"
+    printf '5162001\n' > "$g/functions/rndis.usb0/os_desc/interface.rndis/sub_compatible_id"
+
+    # Same layout as g_ether: Windows takes configuration 1, Linux and
+    # macOS take configuration 2.
+    printf 'RNDIS\n'   > "$g/configs/c.1/strings/0x409/configuration"
+    printf 'CDC ECM\n' > "$g/configs/c.2/strings/0x409/configuration"
+    ln -s "$g/functions/rndis.usb0" "$g/configs/c.1/" || return 1
+    ln -s "$g/functions/ecm.usb0"   "$g/configs/c.2/" || return 1
+    ln -s "$g/configs/c.1" "$g/os_desc/" || return 1
+
+    if ! printf '%s\n' "$udc" > "$g/UDC"; then
+        printf 'Could not bind the gadget to %s\n' "$udc" >&2
+        return 1
+    fi
+}
+
+gadget_svc_enable() {
+    have_systemctl || return 0
+    systemctl daemon-reload || true
+    systemctl enable "$GADGET_SERVICE" 2>/dev/null || true
+}
+
+gadget_svc_disable_now() {
+    have_systemctl || { gadget_down; return 0; }
+    systemctl disable --now "$GADGET_SERVICE" 2>/dev/null || true
+}
+
 svc_status() {
     have_systemctl || { printf '(no systemd)\n'; return; }
     if systemctl --quiet is-enabled "$SERVICE"; then en=yes; else en=no; fi
@@ -112,76 +215,104 @@ nm_delete_all_by_name() {
         done
 }
 
-nm_ensure_client() {
-    # Ensure exactly one "client" profile with desired settings
-    uuid=$(nm_first_uuid_by_name "$CLIENT_NAME")
+# Ensure exactly one profile named $1 of type $2 on interface $3; the
+# remaining arguments are nmcli settings.
+nm_ensure_profile() {
+    p_name="$1"; p_type="$2"; p_iface="$3"; shift 3
+    case "$p_type" in
+        ethernet) p_nmtype=802-3-ethernet ;;
+        *)        p_nmtype="$p_type" ;;
+    esac
 
-    # DHCP client (for ICS); IPv6 disabled; short timeout; prefer routes via DHCP
+    uuid=$(nm_first_uuid_by_name "$p_name")
+
+    # A profile's type cannot be modified: replace those made for g_ether
+    if [ -n "$uuid" ] && \
+       [ "$(nmcli -g connection.type connection show uuid "$uuid" 2>/dev/null)" != "$p_nmtype" ]; then
+        nm_delete_all_by_name "$p_name"
+        uuid=""
+    fi
+
     if [ -z "$uuid" ]; then
-        nm_delete_all_by_name "$CLIENT_NAME"  # paranoia cleanup
-        nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$CLIENT_NAME" \
-            connection.autoconnect no \
-            connection.autoconnect-priority 100 \
-            ipv4.method auto \
-            ipv4.may-fail yes \
-            ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
-            ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method link-local >/dev/null 2>&1 || true
+        nm_delete_all_by_name "$p_name"  # paranoia cleanup
+        nmcli connection add type "$p_type" ifname "$p_iface" con-name "$p_name" \
+            "$@" >/dev/null 2>&1 || true
     else
         # modify by UUID so we don't hit the "multiple connections with same name" warning
         nmcli connection modify uuid "$uuid" \
-            connection.type ethernet \
-            connection.interface-name "$NM_IFACE" \
-            connection.autoconnect no \
-            connection.autoconnect-priority 100 \
-            ipv4.method auto \
-            ipv4.may-fail yes \
-            ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
-            ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
-            ipv6.method link-local >/dev/null 2>&1 || true
+            connection.interface-name "$p_iface" \
+            "$@" >/dev/null 2>&1 || true
 
         # remove any other duplicates that might exist
         nmcli -t -f NAME,UUID connection show 2>/dev/null \
-          | awk -F: -v n="$CLIENT_NAME" '$1==n { print $2 }' \
+          | awk -F: -v n="$p_name" '$1==n { print $2 }' \
           | tail -n +2 | while IFS= read -r du; do
                 [ -n "$du" ] && nmcli connection delete uuid "$du" >/dev/null 2>&1 || true
             done
     fi
 }
 
+nm_ensure_client() {
+    # DHCP client (for ICS); IPv6 disabled; short timeout; prefer routes via DHCP
+    nm_ensure_profile "$CLIENT_NAME" bridge "$NM_IFACE" \
+        connection.autoconnect no \
+        connection.autoconnect-priority 100 \
+        connection.autoconnect-slaves 1 \
+        bridge.stp no \
+        ipv4.method auto \
+        ipv4.may-fail yes \
+        ipv4.route-metric "$CLIENT_ROUTE_METRIC" \
+        ipv4.dhcp-timeout "$CLIENT_DHCP_TIMEOUT" \
+        ipv6.method link-local
+}
+
 nm_ensure_shared() {
-    uuid=$(nm_first_uuid_by_name "$SHARED_NAME")
-
     # Pi serves DHCP+NAT on 10.12.194.0/28; IPv6 disabled; do autoconnect
-    if [ -z "$uuid" ]; then
-        nm_delete_all_by_name "$SHARED_NAME"
-        nmcli connection add type ethernet ifname "$NM_IFACE" con-name "$SHARED_NAME" \
-            connection.autoconnect yes \
-            connection.autoconnect-priority 10 \
-            ipv4.method shared \
-            ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method link-local >/dev/null 2>&1 || true
-    else
-        nmcli connection modify uuid "$uuid" \
-            connection.type ethernet \
-            connection.interface-name "$NM_IFACE" \
-            connection.autoconnect yes \
-            connection.autoconnect-priority 10 \
-            ipv4.method shared \
-            ipv4.addresses "$SHARED_ADDR" \
-            ipv6.method link-local >/dev/null 2>&1 || true
+    nm_ensure_profile "$SHARED_NAME" bridge "$NM_IFACE" \
+        connection.autoconnect yes \
+        connection.autoconnect-priority 10 \
+        connection.autoconnect-slaves 1 \
+        bridge.stp no \
+        ipv4.method shared \
+        ipv4.addresses "$SHARED_ADDR" \
+        ipv6.method link-local
+}
 
-        nmcli -t -f NAME,UUID connection show 2>/dev/null \
-          | awk -F: -v n="$SHARED_NAME" '$1==n { print $2 }' \
-          | tail -n +2 | while IFS= read -r du; do
-                [ -n "$du" ] && nmcli connection delete uuid "$du" >/dev/null 2>&1 || true
-            done
-    fi
+nm_ensure_ports() {
+    for p in "$RNDIS_PORT:$RNDIS_PORT_NAME" "$ECM_PORT:$ECM_PORT_NAME"; do
+        nm_ensure_profile "${p#*:}" ethernet "${p%%:*}" \
+            connection.autoconnect yes \
+            connection.master "$NM_IFACE" \
+            connection.slave-type bridge
+        # udev marks gadget netdevs unmanaged; the conf.d drop-in only
+        # covers devices that appear after NetworkManager read it
+        nmcli device set "${p%%:*}" managed yes >/dev/null 2>&1 || true
+    done
+}
+
+# True once the profiles are the bridge kind (false after an upgrade
+# from the g_ether layout, or before the first "on")
+nm_profiles_current() {
+    uuid=$(nm_first_uuid_by_name "$SHARED_NAME")
+    [ -n "$uuid" ] || return 1
+    [ "$(nmcli -g connection.type connection show uuid "$uuid" 2>/dev/null)" = bridge ] || return 1
+    [ -n "$(nm_first_uuid_by_name "$RNDIS_PORT_NAME")" ] && \
+    [ -n "$(nm_first_uuid_by_name "$ECM_PORT_NAME")" ]
+}
+
+nm_setup() {
+    nm_dnsmasq_setup
+    nm_ensure_client
+    nm_ensure_shared
+    nm_ensure_ports
+    nmcli connection reload >/dev/null 2>&1 || true
 }
 
 nm_remove_profiles() {
     nm_delete_all_by_name "$CLIENT_NAME"
     nm_delete_all_by_name "$SHARED_NAME"
+    nm_delete_all_by_name "$RNDIS_PORT_NAME"
+    nm_delete_all_by_name "$ECM_PORT_NAME"
     nmcli connection reload >/dev/null 2>&1 || true
 }
 
@@ -232,7 +363,12 @@ nm_status() {
   ip4=$(nmcli -g IP4.ADDRESS device show "$NM_IFACE" 2>/dev/null | head -n1)
   gw=$(nmcli -g IP4.GATEWAY device show "$NM_IFACE" 2>/dev/null)
 
+  host=none
+  [ "$(cat "/sys/class/net/$RNDIS_PORT/carrier" 2>/dev/null)" = 1 ] && host='RNDIS (Windows)'
+  [ "$(cat "/sys/class/net/$ECM_PORT/carrier" 2>/dev/null)" = 1 ] && host='CDC-ECM (Linux/macOS)'
+
   printf "  iface:        %s\n" "$NM_IFACE"
+  printf "  host link:    %s\n" "$host"
   printf "  link:         %s\n" "${st:--}"
   printf "  active prof:  %s\n" "${active:--}"
   printf "  IPv4:         %s\n" "${ip4:--}"
@@ -263,6 +399,19 @@ case "$1" in
         if [ -f "$MODS_CONF" ]; then
             TURN_ON=false
         fi
+        ;;
+    start)
+        # Boot-time entry point for rpi-usb-gadget.service
+        gadget_up || exit 1
+        if have_nmcli && ! nm_profiles_current; then
+            nm_setup
+            nm_up "$SHARED_NAME"
+        fi
+        exit 0
+        ;;
+    stop)
+        gadget_down
+        exit 0
         ;;
     status)
         if [ -f "$MODS_CONF" ]; then
@@ -340,6 +489,7 @@ if [ "$TURN_ON" = false ]; then
     fi
 
     # kernel gadget off
+    gadget_svc_disable_now
     rm -f "$MODS_CONF"
     sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
     sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
@@ -352,28 +502,28 @@ else
     check_supported || exit 1
 
     printf 'Turning \033[32mon\033[0m USB Gadget mode\n'
-    printf "g_ether\n" > "$MODS_CONF"
-    modprobe g_ether 2>/dev/null || true
+    printf "libcomposite\n" > "$MODS_CONF"
     if ! cfg_has_overlay; then
         # ensure overlay present once, under an [all] filter
         sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_FW" 2>/dev/null || true
         sed -i "\|^$OVERLAY_LINE\$|d" "$CFG_LEGACY" 2>/dev/null || true
         cfg_append_overlay "$CFG_FW" 2>/dev/null || cfg_append_overlay "$CFG_LEGACY"
     fi
+    gadget_svc_enable
     # config.txt may already carry the overlay from a run that was never rebooted
-    if ! overlay_active; then
+    if overlay_active; then
+        if have_systemctl; then
+            systemctl restart "$GADGET_SERVICE" 2>/dev/null || true
+        else
+            gadget_up || true
+        fi
+    else
         NEED_REBOOT=true
     fi
 
-    # NetworkManager: dnsmasq + client profile + shared profile
+    # NetworkManager: dnsmasq + bridge profiles (client, shared) + ports
     if have_nmcli; then
-        nm_dnsmasq_setup
-        nm_ensure_client
-        nm_ensure_shared
-        nmcli connection reload >/dev/null 2>&1 || true
-
-        # Make sure NetworkManager actually manages the gadget iface
-        nmcli device set "$NM_IFACE" managed yes >/dev/null 2>&1 || true
+        nm_setup
 
         # Try client first; ICS-watch will flip to shared if no DHCP/gateway
         nm_down "$CLIENT_NAME"

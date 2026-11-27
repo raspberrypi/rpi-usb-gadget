@@ -1,3 +1,13 @@
+rpi-usb-gadget (1.1.0) trixie; urgency=medium
+
+  * Replace g_ether with a libcomposite (configfs) gadget carrying
+    Microsoft OS descriptors, so Windows needs no driver
+  * Bridge usb0 over the RNDIS and CDC-ECM gadget netdevs
+  * Add rpi-usb-gadget.service to build the gadget at boot
+  * Switch g_ether-era installs to the composite gadget at next boot
+
+ -- Tom Dewey <tom.dewey@raspberrypi.com>  Fri, 27 Nov 2026 15:03:02 +0000
+
 rpi-usb-gadget (1.0.6) trixie; urgency=medium
 
   [ Paul Oberosler ]

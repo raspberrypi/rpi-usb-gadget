@@ -10,9 +10,22 @@ for dev in /sys/class/net/usb*; do
   udevadm trigger --action=change --sysname-match="$(basename "$dev")" || true
 done
 
-# Stamp serial into g_ether options
-SERIAL=$(awk '/^Serial/{print $3; exit}' /proc/cpuinfo)
-sed -i "s/<serial>/$SERIAL/g" /usr/lib/modprobe.d/g_ether.conf
+# Pick up the conf.d drop-in that lets NM manage the gadget netdevs
+if command -v nmcli >/dev/null 2>&1; then
+  nmcli general reload conf >/dev/null 2>&1 || true
+fi
+
+# Gadget enabled by a g_ether-era version: switch to the composite gadget
+# at the next boot. The running link is left alone, as the upgrade may be
+# happening over it.
+MODS_CONF=/etc/modules-load.d/usb-gadget.conf
+if [ -f "$MODS_CONF" ] && grep -qx 'g_ether' "$MODS_CONF"; then
+  printf 'libcomposite\n' > "$MODS_CONF"
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl enable rpi-usb-gadget.service >/dev/null 2>&1 || true
+  fi
+  echo "rpi-usb-gadget: reboot to switch to the driverless Windows gadget"
+fi
 
 # Ensure our helper scripts are executable (in case VCS lost +x)
 chmod 0755 /usr/bin/rpi-usb-gadget 2>/dev/null || true

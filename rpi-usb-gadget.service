@@ -1,0 +1,14 @@
+[Unit]
+Description=USB Ethernet gadget (RNDIS + CDC-ECM)
+ConditionPathExists=/etc/modules-load.d/usb-gadget.conf
+After=systemd-modules-load.service sys-kernel-config.mount NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/rpi-usb-gadget start
+ExecStop=/usr/bin/rpi-usb-gadget stop
+
+[Install]
+WantedBy=multi-user.target
