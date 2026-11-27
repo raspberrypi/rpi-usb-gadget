@@ -66,7 +66,10 @@ static NMDevice *get_device(void) {
     if (!d) {
         return NULL;
     }
-    if (nm_device_get_device_type(d) == NM_DEVICE_TYPE_ETHERNET) {
+    // A bridge over the gadget's RNDIS and ECM netdevs; plain ethernet
+    // is kept for USB_GADGET_IFACE overrides.
+    NMDeviceType t = nm_device_get_device_type(d);
+    if (t == NM_DEVICE_TYPE_BRIDGE || t == NM_DEVICE_TYPE_ETHERNET) {
         return d;
     }
 
@@ -123,16 +126,14 @@ static void on_activate_cb(GObject *src, GAsyncResult *res, gpointer user_data) 
 }
 
 static gboolean up(const char *name) {
+    // NULL is expected: the bridge only exists while a profile is active,
+    // and NetworkManager creates it on activation.
     NMDevice *dev = get_device();
-    if (!dev) {
-        log_msg(FALSE, "up(): no device");
-        return FALSE;
-    }
 
     if (is_active_id(name)) {
         log_msg(FALSE, "'%s' already active", name);
         return TRUE;
-    } else if (is_transitioning(dev)) {
+    } else if (dev && is_transitioning(dev)) {
         log_msg(FALSE, "Activation already in progress (state=%d); skip up('%s')",
                 nm_device_get_state(dev), name);
         return TRUE; // treat as fine
@@ -212,6 +213,10 @@ static gboolean carrier_up(NMDevice *dev) {
     if (NM_IS_DEVICE_ETHERNET(dev)) {
         NMDeviceEthernet *eth = NM_DEVICE_ETHERNET(dev);
         return nm_device_ethernet_get_carrier(eth);
+    }
+    // Up when either port has a host attached
+    if (NM_IS_DEVICE_BRIDGE(dev)) {
+        return nm_device_bridge_get_carrier(NM_DEVICE_BRIDGE(dev));
     }
     return nm_device_get_state(dev) == NM_DEVICE_STATE_ACTIVATED;
 }
@@ -327,7 +332,11 @@ static gboolean periodic_check(gpointer user_data) {
 
     NMDevice *dev = get_device();
     if (!dev) {
-        log_msg(FALSE, "No device %s", IFACE);
+        // No bridge means no active profile, e.g. midway through a switch
+        log_msg(FALSE, "No device %s; bringing up SHARED", IFACE);
+        if (up(SHARED_ID)) {
+            last_switch = now_s();
+        }
         return G_SOURCE_CONTINUE;
     }
 
@@ -346,6 +355,13 @@ static gboolean periodic_check(gpointer user_data) {
         return G_SOURCE_CONTINUE;
     } else if (!carrier_up(dev)) {
         log_msg(FALSE, "Link down");
+        // Unlike ethernet, a bridge keeps its profile without carrier;
+        // return to SHARED so the next host starts from the default.
+        // The probe window covers the ports rejoining after a switch.
+        if (g_strcmp0(name, CLIENT_ID) == 0 && now_s() >= client_deadline) {
+            client_deadline = 0;
+            maybe_switch(SHARED_ID);
+        }
         return G_SOURCE_CONTINUE;
     }
 

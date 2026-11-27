@@ -14,12 +14,16 @@ case "$1" in
     if command -v nmcli >/dev/null 2>&1; then
       nmcli -t -f NAME con show | grep -Fxq 'USB Gadget (client)'  && nmcli con delete 'USB Gadget (client)'  || true
       nmcli -t -f NAME con show | grep -Fxq 'USB Gadget (shared)'  && nmcli con delete 'USB Gadget (shared)'  || true
+      for port in 'USB Gadget (RNDIS port)' 'USB Gadget (ECM port)'; do
+        nmcli -t -f NAME con show | grep -Fxq "$port" && nmcli con delete "$port" || true
+      done
       nmcli connection reload  || true
       nmcli general reload     || true
     else
       # Locations used by NM for keyfile profiles
       rm -f /etc/NetworkManager/system-connections/USB\ Gadget\ \(client\).nmconnection 2>/dev/null || true
       rm -f /etc/NetworkManager/system-connections/USB\ Gadget\ \(shared\).nmconnection 2>/dev/null || true
+      rm -f /etc/NetworkManager/system-connections/USB\ Gadget\ \(*\ port\).nmconnection 2>/dev/null || true
     fi
 
     # Remove modules-load override the CLI may have created

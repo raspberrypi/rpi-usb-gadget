@@ -1,6 +1,6 @@
 [Unit]
 Description=USB gadget ICS auto-switcher (client <-> shared)
-After=NetworkManager.service
+After=NetworkManager.service rpi-usb-gadget.service
 Wants=NetworkManager.service
 
 [Service]
