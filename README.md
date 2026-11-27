@@ -1,16 +1,16 @@
 # Raspberry Pi USB Gadget
 
-This package turns your Raspberry Pi into a **USB Ethernet gadget** using the kernel’s `g_ether` driver. On the host it appears as:
+This package turns your Raspberry Pi into a **USB Ethernet gadget** using a composite gadget built with the kernel’s `libcomposite` (configfs). On the host it appears as:
 
 * **CDC-ECM** on Linux and macOS
-* **RNDIS** on Windows (use the included Raspberry Pi USB RNDIS driver for fastest onboarding)
+* **RNDIS** on Windows 10 and 11, with no driver to install: the gadget carries Microsoft OS descriptors, so Windows binds its built-in RNDIS driver
 
 It’s designed for headless setups and for places where Wi-Fi isn’t available or communication between network devices is restricted. With a single Micro USB or USB-C cable you get a network link that’s ideal for SSH, file copy, and remote dev (e.g. VS Code), with **very low latency**.
 
 ## What’s new / how it behaves
 
 * **Auto client/shared switching (NetworkManager):**
-  We install two NM profiles on the gadget interface (default `usb0`) and run a small watcher service:
+  We install two NM profiles on the gadget bridge (default `usb0`) and run a small watcher service:
 
   * **USB Gadget (client):** Pi is a **DHCP client** of the host (used when host Internet Connection Sharing is detected; typical host gateways: `192.168.137.1`, `192.168.2.1`, `10.42.0.1`).
   * **USB Gadget (shared):** Pi provides **DHCP + NAT** to the host at `10.12.194.1/28`.
@@ -21,7 +21,7 @@ It’s designed for headless setups and for places where Wi-Fi isn’t available
   We do **not** enable a serial gadget (`/dev/ttyGS0`) by default.
 
 * **Host support:**
-  Windows (with RNDIS driver), macOS, and Linux hosts.
+  Windows 10/11, macOS, and Linux hosts, all without extra drivers.
 
   > Make sure to have any VPNs disabled on the host, as they can interfere with the local networking!
 
@@ -77,9 +77,10 @@ This narrow subnet minimizes the chance of colliding with the host’s other net
 
 ## How It Works
 
-This package enables the **USB Ethernet gadget** (`g_ether` kernel module) and configures NetworkManager to manage the gadget link:
+This package builds a **USB Ethernet gadget** in configfs (`rpi-usb-gadget.service`) and configures NetworkManager to manage the gadget link:
 
-* **Interface:** `usb0` (or set `USB_GADGET_IFACE` in the service environment)
+* **Gadget:** two USB configurations, as `g_ether` had: RNDIS first (chosen by Windows) and CDC-ECM second (chosen by Linux and macOS).
+* **Interface:** `usb0`, a bridge over the two gadget netdevs `usbrndis0` and `usbecm0`. Only one of them carries traffic at a time, depending on the host; `rpi-usb-gadget status` shows which.
 * **Profiles:**
 
   * **USB Gadget (client)** – DHCP client of the host (for host ICS)
@@ -93,7 +94,7 @@ This package enables the **USB Ethernet gadget** (`g_ether` kernel module) and c
 * **In SHARED mode:** the Pi is `10.12.194.1`. SSH: `ssh pi@10.12.194.1`
 * **In CLIENT mode:** the Pi receives its IP from the host’s ICS network (check the host adapter); you can also try `ssh pi@<hostname>.local` (mDNS).
 
-On Windows, installing the supplied **Raspberry Pi USB RNDIS Driver** helps the host bind quickly to the gadget as an Ethernet adapter.
+Windows 10 and 11 bind the gadget automatically. The **Raspberry Pi USB RNDIS Driver** from the Releases page is only needed for Pis still running a package version older than 1.1.0, and is harmless if already installed.
 
 ## Installation
 
@@ -144,9 +145,9 @@ You can then connect to it via SSH, transfer files, or use remote development to
 
 When the gadget is working on Windows, you should see a network adapter named:
 
-**Raspberry Pi USB Remote NDIS Network Device**
+**Remote NDIS Compatible Device** (Windows’ built-in driver), or **Raspberry Pi USB Remote NDIS Network Device** if the Raspberry Pi RNDIS driver is installed.
 
-If Windows doesn't show this adapter in Device Manager or the Control Panel, the Raspberry Pi RNDIS driver isn’t installed.
+If Windows doesn't show this adapter in Device Manager or the Control Panel, check that the Pi runs rpi-usb-gadget 1.1.0 or later and has been rebooted since the upgrade. Older versions need the Raspberry Pi RNDIS driver from the Releases page.
 👉 Install it from the project’s Releases:
 **[https://github.com/raspberrypi/rpi-usb-gadget/releases](https://github.com/raspberrypi/rpi-usb-gadget/releases)**
 
@@ -163,7 +164,7 @@ If Windows doesn't show this adapter in Device Manager or the Control Panel, the
 * **Can’t reach the Pi by hostname** (or `ping -4 <hostname>` fails), and on the Pi you see the ICS watcher/profile **flapping** between *CLIENT* and *SHARED*:
   Windows likely didn’t bind ICS to the gadget NIC or got confused after a reboot/cable replug.
 * **Adapter shows “Unidentified adapter”**:
-  The RNDIS driver isn’t installed—install from the Releases page above.
+  Windows hasn’t bound its RNDIS driver—update rpi-usb-gadget on the Pi, or install the driver from the Releases page above.
 * **Pi shows 169.254.x.x (APIPA)** instead of 192.168.137.x:
   Windows’ DHCP isn’t serving—ICS isn’t actually active on the gadget NIC.
 
@@ -173,12 +174,12 @@ If Windows doesn't show this adapter in Device Manager or the Control Panel, the
 
    * Open the upstream adapter’s **Sharing** tab.
    * Uncheck *“Allow other network users to connect…”* → **OK**.
-   * Reopen the dialog, re-check it, and pick **Raspberry Pi USB Remote NDIS Network Device** as the **Home networking connection**.
+   * Reopen the dialog, re-check it, and pick the gadget adapter named above as the **Home networking connection**.
    * Optional: Disable/Enable the gadget NIC in Device Manager or unplug/replug the USB cable.
 
 2. **Driver fix (if “Unidentified adapter”)**
 
-   * Install the RNDIS driver from the Releases page.
+   * Update rpi-usb-gadget on the Pi to 1.1.0 or later and reboot it, or install the RNDIS driver from the Releases page.
    * Then repeat the ICS toggle above.
 
 3. **Clear stale IPs (Windows quirk)**
